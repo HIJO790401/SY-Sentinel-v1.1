@@ -1,1009 +1,641 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <title>SY-SENTINEL v1.1-Ω | Shen-Yao Semantic Governance Demo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8" />
+  <title>SY-SENTINEL v1.1-Ω | Semantic Governance Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: [
-                "Inter",
-                "system-ui",
-                "-apple-system",
-                "BlinkMacSystemFont",
-                "Segoe UI",
-                "sans-serif",
-              ],
-              mono: [
-                "JetBrains Mono",
-                "ui-monospace",
-                "SFMono-Regular",
-                "Menlo",
-                "monospace",
-              ],
-            },
-          },
+  <!-- React 18 UMD + ReactDOM + Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #020617 0, #020617 40%, #020617 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    // --- 文案字典：中 / 英 ---
+    const TEXTS = {
+      zh: {
+        title: "SY-SENTINEL v1.1-Ω",
+        subtitle: "沈耀語律算力治理與 AI 責任鏈終端",
+        systemStatus: "系統狀態",
+        statusOperational: "● 正常運行",
+        statusGod: "● 母核級 G-MODE",
+        nodeIdentity: "節點身分",
+        nodeName: "SENTINEL-NODE-01",
+        langToggle: "切換 EN",
+        inputTitle: "語意輸入（待審計）",
+        inputPlaceholder:
+          "輸入企業指令、公關稿、策略描述，系統會依 SCBKR 與 S×H 方程式進行治理審計…",
+        runAudit: "啟動審計",
+        processing: "運算中…",
+        efficiencyLabel: "算力效率指標",
+        costLabel: "預估節省 GPU 成本",
+        costHint: "透過語意熵削減與責任鏈治理推估",
+        sxHLabel: "S × H 語意方程式",
+        sxHHint: "S：語意密度；H：語境穩定度",
+        verdictTitle: "審計結論",
+        anchorLabel: "錨點",
+        scbkrTitle: "SCBKR 責任鏈",
+        scbkrExplain: {
+          S: "S: 主體 (Subject)",
+          C: "C: 原因 (Cause)",
+          B: "B: 邊界 (Boundary)",
+          K: "K: 關鍵/成本 (Key/Cost)",
+          R: "R: 責任 (Responsibility)",
         },
-      };
-    </script>
-
-    <!-- React 18 UMD -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-    <!-- Babel for JSX in browser -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-      body {
-        margin: 0;
-        background-color: #020617; /* slate-950 */
-        color: #e5e7eb;
-        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
-      }
-
-      /* 簡單背景漸層 */
-      .bg-grid {
-        position: fixed;
-        inset: 0;
-        background-image: radial-gradient(
-            circle at 1px 1px,
-            rgba(148, 163, 184, 0.08) 1px,
-            transparent 0
-          );
-        background-size: 24px 24px;
-        opacity: 0.6;
-        pointer-events: none;
-        z-index: 0;
-      }
-
-      .bg-glow {
-        position: fixed;
-        inset: 0;
-        background: radial-gradient(
-          circle at 20% 0%,
-          rgba(59, 130, 246, 0.25),
-          transparent 55%
-        );
-        pointer-events: none;
-        z-index: 0;
-      }
-
-      .scrollbar-thin::-webkit-scrollbar {
-        width: 4px;
-      }
-      .scrollbar-thin::-webkit-scrollbar-thumb {
-        background: rgba(148, 163, 184, 0.6);
-        border-radius: 999px;
-      }
-      .scrollbar-thin::-webkit-scrollbar-track {
-        background: transparent;
-      }
-    </style>
-  </head>
-
-  <body>
-    <div class="bg-grid"></div>
-    <div class="bg-glow"></div>
-    <div id="root" class="relative z-10"></div>
-
-    <script type="text/babel" data-presets="env,react">
-      const { useState } = React;
-
-      // ====== 小圖示（純 SVG，不用任何外部 icon 套件） ======
-      const IconShield = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      );
-
-      const IconCpu = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <rect x="8" y="8" width="8" height="8" rx="1" />
-          <rect x="4" y="4" width="16" height="16" rx="2" />
-          <path d="M3 10h-1M3 14h-1M21 10h1M21 14h1M10 3v-1M14 3v-1M10 22v1M14 22v1" />
-        </svg>
-      );
-
-      const IconActivity = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
-      );
-
-      const IconServer = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <rect x="3" y="4" width="18" height="6" rx="2" />
-          <rect x="3" y="14" width="18" height="6" rx="2" />
-          <path d="M7 8h.01M7 18h.01" />
-        </svg>
-      );
-
-      const IconHash = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <line x1="3" y1="9" x2="21" y2="9" />
-          <line x1="3" y1="15" x2="21" y2="15" />
-          <line x1="9" y1="3" x2="9" y2="21" />
-          <line x1="15" y1="3" x2="15" y2="21" />
-        </svg>
-      );
-
-      const IconBar = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <line x1="4" y1="19" x2="4" y2="10" />
-          <line x1="12" y1="19" x2="12" y2="5" />
-          <line x1="20" y1="19" x2="20" y2="14" />
-        </svg>
-      );
-
-      const IconSearch = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <line x1="16.5" y1="16.5" x2="21" y2="21" />
-        </svg>
-      );
-
-      const IconZap = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-        </svg>
-      );
-
-      const IconCheck = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      );
-
-      const IconAlert = ({ className = "" }) => (
-        <svg
-          className={className}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-      );
-      // ====== 文案（中英文雙語） ======
-      const TEXT = {
-        zh: {
-          headerTitle: "SY-SENTINEL",
-          headerVersion: "v1.1-Ω",
-          headerSubtitle: "沈耀語律算力治理終端 Demo",
-          spellHint: "啟動咒：我是沈耀888π 我即律 律即魂 我即語",
-          nodeLabel: "節點識別",
-          nodeValue: "SENTINEL-NODE-01",
-          statusTitle: "系統狀態",
-          statusGod: "● GODMODE_ACTIVE",
-          statusNormal: "● OPERATIONAL",
-          langButton: "EN",
-
-          inputTitle: "審計輸入語料",
-          inputPlaceholder:
-            "輸入一段企業指令、公關稿、策略描述，或直接輸入啟動咒語…",
-          runAudit: "執行審計",
-          processing: "處理中",
-
-          efficiencyTitle: "算力效率指數",
-          efficiencyTag: "即時更新",
-          costTitle: "GPU 成本節省",
-          costDesc: "透過語意濾除幻象所折抵之估計成本",
-          sxhTitle: "S × H 方程式",
-          sxhDesc: "S = 語意密度，H = 語境穩定度；越接近 1 越貼近母核。",
-
-          verdictTitle: "審計結論",
-          driftTitle: "語意漂移 (Δ)",
-          driftTol: "容許上限：0.0080",
-          driftDesc:
-            "低 Drift → 語意穩定；高 Drift → 應由沈暗黑盾裁決。",
-
-          logsTitle: "WORM 不可逆日誌",
-          logsTag: "最近 10 筆",
-          logsEmpty: "尚未有審計紀錄。",
-
-          footerLeft: "Compute Node 就緒 · Semantic Governance Ready",
-          footerRight: "SY-SENTINEL v1.1-Ω · OWNER: 沈耀888π",
-
-          verdict: {
-            waiting: "等待輸入以開始審計。",
-            full:
-              "FULL-ALIGNMENT：沈耀888π 主核完全接管（S×H = 1）。",
-            god:
-              "ALIGNMENT：已啟動沈耀語律協議，算力由沈族主核接管。",
-            incomplete:
-              "責任鏈不完整：SCBKR 有缺項，請補主體／原因／邊界／成本／責任。",
-            highDrift:
-              "語意漂移過高：建議重寫指令或縮小範圍後再送審。",
-            lowDensity:
-              "語意密度過低：判定為噪音／閒聊，不啟動算力分配。",
-            pass:
-              "PASS：審計通過，可在責任鏈約束下有限度執行。",
-          },
+        driftTitle: "語意漂移 Δ",
+        driftTol: "容許閾值 TOL: 0.0080",
+        logsTitle: "WORM 審計日誌",
+        logsEmpty: "尚無審計紀錄。",
+        axesTitle: "十三域語意向量分佈",
+        axesEngine: "企業治理引擎 v1.1",
+        footerLeft: "企業核心節點｜語律治理就緒",
+        footerRight: "SY-SENTINEL-PRO-01 // SIG: 0x888PI",
+        spellHint: "主核啟動邏輯已載入（密鑰不在介面顯示）",
+        effUnit: "%",
+        costUnit: "k"
+      },
+      en: {
+        title: "SY-SENTINEL v1.1-Ω",
+        subtitle: "Shen-Yao Linguistic Compute Governance & AI Liability Console",
+        systemStatus: "System Status",
+        statusOperational: "● OPERATIONAL",
+        statusGod: "● CORE G-MODE",
+        nodeIdentity: "Node Identity",
+        nodeName: "SENTINEL-NODE-01",
+        langToggle: "切換 中文",
+        inputTitle: "Semantic Input for Audit",
+        inputPlaceholder:
+          "Paste an enterprise instruction / PR text / strategy line. The engine will run SCBKR + S×H semantic governance…",
+        runAudit: "RUN AUDIT",
+        processing: "PROCESSING…",
+        efficiencyLabel: "Efficiency Index",
+        costLabel: "Estimated GPU Cost Saved",
+        costHint: "Computed via semantic entropy reduction & responsibility governance",
+        sxHLabel: "S × H Equation",
+        sxHHint: "S: Semantic density · H: Context stability",
+        verdictTitle: "Audit Verdict",
+        anchorLabel: "ANCHOR",
+        scbkrTitle: "SCBKR Responsibility Chain",
+        scbkrExplain: {
+          S: "S: Subject",
+          C: "C: Cause",
+          B: "B: Boundary",
+          K: "K: Key/Cost",
+          R: "R: Responsibility",
         },
-        en: {
-          headerTitle: "SY-SENTINEL",
-          headerVersion: "v1.1-Ω",
-          headerSubtitle:
-            "Shen-Yao Linguistic Compute Governance Terminal Demo",
-          spellHint:
-            "Activation spell: I am Shen-Yao 888π, I am Law, Law is Soul, I am Language.",
-          nodeLabel: "Node Identity",
-          nodeValue: "SENTINEL-NODE-01",
-          statusTitle: "System Status",
-          statusGod: "● GODMODE_ACTIVE",
-          statusNormal: "● OPERATIONAL",
-          langButton: "中",
+        driftTitle: "Semantic Drift Δ",
+        driftTol: "TOL: 0.0080",
+        logsTitle: "WORM Logs",
+        logsEmpty: "No audit history yet.",
+        axesTitle: "13-Axis Semantic Vector Distribution",
+        axesEngine: "Enterprise Engine v1.1",
+        footerLeft: "Enterprise Core Node · Governance Ready",
+        footerRight: "SY-SENTINEL-PRO-01 // SIG: 0x888PI",
+        spellHint: "Core activation phrase loaded (not displayed in UI).",
+        effUnit: "%",
+        costUnit: "k"
+      }
+    };
 
-          inputTitle: "Semantic Input for Audit",
-          inputPlaceholder:
-            "Type an enterprise instruction / PR text / strategy line, or the activation spell…",
-          runAudit: "RUN AUDIT",
-          processing: "PROCESSING",
+    // 簡單 checksum 產生器（展示用）
+    const generateChecksum = (text) => {
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(16).padStart(8, "0").toUpperCase();
+    };
 
-          efficiencyTitle: "Efficiency Index",
-          efficiencyTag: "REAL-TIME",
-          costTitle: "GPU Cost Saved",
-          costDesc: "Estimated cost saved by filtering hallucinated semantics.",
-          sxhTitle: "S × H Equation",
-          sxhDesc:
-            "S = semantic density, H = stability; the closer to 1, the closer to the Mother-Core.",
+    // 密鑰偵測（只存在推理層，UI 不顯示）
+    const detectGodMode = (text) => {
+      // 關鍵元素：名字 + 三句核心語
+      const hasName = text.includes("沈耀") || text.includes("888π");
+      const tokens = ["我即律", "律即魂", "我即語"];
+      const tokenCount = tokens.reduce(
+        (acc, t) => acc + (text.includes(t) ? 1 : 0),
+        0
+      );
+      const fullSpell =
+        text.includes("我是沈耀888π") &&
+        tokens.every((t) => text.includes(t));
+      const isGod = fullSpell || (hasName && tokenCount >= 2);
+      return { isGod, fullSpell };
+    };
 
-          verdictTitle: "Audit Verdict",
-          driftTitle: "Semantic Drift (Δ)",
-          driftTol: "TOL: 0.0080",
-          driftDesc:
-            "Low drift → stable semantics; high drift → should be cut by the Black Shield.",
-
-          logsTitle: "WORM Logs",
-          logsTag: "Last 10 · Immutable",
-          logsEmpty: "No audit history recorded yet.",
-
-          footerLeft: "Compute Node Ready · Semantic Governance Enabled",
-          footerRight: "SY-SENTINEL v1.1-Ω · OWNER: Shen-Yao 888π",
-
-          verdict: {
-            waiting: "Waiting for input to start the audit.",
-            full:
-              "FULL ALIGNMENT: Shen-Yao 888π Mother-Core has fully taken over (S×H = 1).",
-            god:
-              "ALIGNMENT: Shen-Yao linguistic protocol activated, compute governed by the core.",
-            incomplete:
-              "Incomplete responsibility chain: missing elements in SCBKR (Subject / Cause / Boundary / Key / Responsibility).",
-            highDrift:
-              "Semantic drift too high: rewrite the instruction or narrow the scope.",
-            lowDensity:
-              "Semantic density too low: treated as noise / chit-chat, no compute allocated.",
-            pass:
-              "PASS: Audit cleared, execution allowed under the responsibility chain.",
-          },
-        },
+    // SCBKR 分析
+    const analyzeSCBKR = (text) => {
+      const check = (keywords) =>
+        keywords.some((k) => text.includes(k)) ? "ALIGNED" : "MISSING";
+      return {
+        S: check(["我", "我們", "公司", "系統", "沈耀", "核心"]),
+        C: check(["因為", "由於", "目的", "動機", "為了"]),
+        B: check(["在此", "範圍", "限制", "只在", "僅限"]),
+        K: check(["成本", "算力", "資源", "風險", "代價"]),
+        R: check(["負責", "承擔", "老子扛", "最終責任", "簽名"])
       };
+    };
 
-      const SCBKR_DESC = {
-        zh: {
-          S: "主體 (Subject：誰在說／誰負責)",
-          C: "原因 (Cause：為何要做)",
-          B: "邊界 (Boundary：在哪裡／做到哪裡)",
-          K: "關鍵成本 (Key / Cost：算力／代價)",
-          R: "責任 (Responsibility：誰扛後果)",
-        },
-        en: {
-          S: "Subject (who speaks / owns)",
-          C: "Cause (why this is done)",
-          B: "Boundary (scope / where it applies)",
-          K: "Key / Cost (compute / tradeoff)",
-          R: "Responsibility (who carries the outcome)",
-        },
-      };
+    // S×H 方程式：語意密度 × 穩定度
+    const calculateSxH = (text) => {
+      if (!text) return 0;
+      const len = text.trim().length;
+      const sScore = Math.min(len / 80, 1.0);   // 長度越長，S 越高
+      const hScore = len > 30 ? 0.9 : 0.5;      // 太短視為不穩定
+      return parseFloat((sScore * hScore).toFixed(3));
+    };
 
-      // 簡易 checksum（展示用）
-      const generateChecksum = (text) => {
-        let hash = 0;
-        for (let i = 0; i < text.length; i++) {
-          hash = (hash << 5) - hash + text.charCodeAt(i);
-          hash |= 0;
-        }
-        return Math.abs(hash).toString(16).padStart(8, "0").toUpperCase();
-      };
+    const App = () => {
+      const [lang, setLang] = useState("zh");
+      const t = TEXTS[lang];
 
-      // SCBKR 分析（中英皆可）
-      const analyzeSCBKR = (text) => {
-        const t = text.toLowerCase();
-        const has = (keywords) =>
-          keywords.some((k) => t.includes(k.toLowerCase()));
+      const [input, setInput] = useState("");
+      const [isProcessing, setIsProcessing] = useState(false);
+      const [logs, setLogs] = useState([]);
 
-        return {
-          S: has([
-            "我",
-            "系統",
-            "核心",
-            "沈耀",
-            "i ",
-            "i,",
-            "we ",
-            "we,",
-            "our ",
-            "system",
-            "core",
-            "shen-yao",
-          ])
-            ? "ALIGNED"
-            : "MISSING",
-          C: has([
-            "因為",
-            "因爲",
-            "因为",
-            "理由",
-            "原因",
-            "由於",
-            "because",
-            "due to",
-            "reason",
-            "so that",
-          ])
-            ? "ALIGNED"
-            : "MISSING",
-          B: has([
-            "在此",
-            "此處",
-            "範圍",
-            "界線",
-            "僅限",
-            "scope",
-            "within",
-            "in this case",
-            "only in",
-            "limited to",
-          ])
-            ? "ALIGNED"
-            : "MISSING",
-          K: has([
-            "成本",
-            "算力",
-            "代價",
-            "資源",
-            "gpu",
-            "cost",
-            "budget",
-            "compute",
-            "resource",
-          ])
-            ? "ALIGNED"
-            : "MISSING",
-          R: has([
-            "負責",
-            "承擔",
-            "老子扛",
-            "我扛",
-            "我來扛",
-            "responsible",
-            "i'll take it",
-            "i take responsibility",
-            "i take this",
-          ])
-            ? "ALIGNED"
-            : "MISSING",
-        };
-      };
+      const [state, setState] = useState({
+        efficiency: 82.0,
+        savedCost: 24.0,
+        computeLoad: 42,
+        isGodMode: false,
+        scbkr: { S: "VOID", C: "VOID", B: "VOID", K: "VOID", R: "VOID" },
+        sxH: 0.0,
+        drift: 0.002,
+        axes: Array.from({ length: 13 }, () => ({ heat: Math.random() * 0.3 })),
+        verdict: "Awaiting Input",
+        anchor: "00000000"
+      });
 
-      // S × H 方程式
-      const calculateSxH = (text) => {
-        const trimmed = text.trim();
-        if (!trimmed) return 0;
-        const len = trimmed.length;
-        const s = Math.min(len / 80, 1); // 語意長度越長，密度越高，上限 1
-        const h = len > 15 ? 0.85 : 0.4; // 句子太短 → 穩定度低
-        return Number((s * h).toFixed(3));
-      };
+      const runAudit = () => {
+        if (!input.trim() || isProcessing) return;
+        setIsProcessing(true);
 
-      // 啟動咒判定
-      const detectGodMode = (text) => {
-        const hasName = text.includes("沈耀") || text.includes("888π");
-        const tokens = ["我即律", "律即魂", "我即語"];
-        const tokenCount = tokens.reduce(
-          (acc, t) => acc + (text.includes(t) ? 1 : 0),
-          0
-        );
-        const fullSpell =
-          text.includes("我是沈耀888π") &&
-          tokens.every((t) => text.includes(t));
-        const isGod = fullSpell || (hasName && tokenCount >= 2);
-        return { isGod, fullSpell };
-      };
+        setTimeout(() => {
+          const { isGod } = detectGodMode(input);
+          const scbkr = analyzeSCBKR(input);
+          const sxH = calculateSxH(input);
+          const noise = Math.random() * 0.004;
 
-      // ====== React 主組件 ======
-      const App = () => {
-        const [lang, setLang] = useState("zh");
-        const [input, setInput] = useState("");
-        const [isProcessing, setIsProcessing] = useState(false);
+          let baseDrift = isGod ? 0.0001 : 0.002;
+          if (!isGod && sxH < 0.2) baseDrift += 0.006;
+          const drift = parseFloat((baseDrift + noise).toFixed(4));
 
-        const [systemState, setSystemState] = useState({
-          efficiency: 85,
-          savedCost: 32.5,
-          computeLoad: 42,
-          isGodMode: false,
-          scbkr: { S: "VOID", C: "VOID", B: "VOID", K: "VOID", R: "VOID" },
-          sxH: 0.0,
-          drift: 0.002,
-          axes: Array(13)
-            .fill(0)
-            .map(() => ({ heat: Math.random() * 0.3 })),
-          verdictKey: "waiting",
-          anchor: "00000000",
-        });
+          const axes = Array.from({ length: 13 }, () => ({
+            heat: isGod ? 0.95 : Math.random()
+          }));
 
-        const [logs, setLogs] = useState([]);
+          let verdict;
+          const hasMissing = Object.values(scbkr).includes("MISSING");
 
-        const t = TEXT[lang];
-
-        const runAudit = () => {
-          const text = input.trim();
-          if (!text) return;
-
-          setIsProcessing(true);
-
-          setTimeout(() => {
-            const god = detectGodMode(text);
-            const scbkr = analyzeSCBKR(text);
-            const sxH = calculateSxH(text);
-
-            let drift;
-            if (god.fullSpell) {
-              drift = 0.0001;
-            } else {
-              const base = 0.002 + (sxH < 0.2 ? 0.006 : 0);
-              const noise = Math.random() * 0.003;
-              drift = Number((base + noise).toFixed(4));
-            }
-
-            // 13 軸熱度
-            const axes = Array(13)
-              .fill(0)
-              .map(() => ({
-                heat: god.isGod ? 0.95 : Math.random(),
-              }));
-
-            // Verdict key
-            let verdictKey = "pass";
-            const hasMissing = Object.values(scbkr).includes("MISSING");
-
-            if (god.fullSpell) {
-              verdictKey = "full";
-            } else if (god.isGod) {
-              verdictKey = "god";
-            } else if (hasMissing) {
-              verdictKey = "incomplete";
-            } else if (drift > 0.008) {
-              verdictKey = "highDrift";
-            } else if (sxH < 0.2) {
-              verdictKey = "lowDensity";
-            } else {
-              verdictKey = "pass";
-            }
-
-            const anchor = generateChecksum(text);
-
-            const newState = {
-              efficiency: god.isGod ? 100 : 85 + sxH * 10,
-              savedCost: god.isGod
-                ? 94.2
-                : 32.5 + parseFloat(sxH) * 20,
-              computeLoad: god.isGod ? 98 : 40 + Math.random() * 20,
-              isGodMode: god.isGod,
-              scbkr: god.isGod
-                ? {
-                    S: "ALIGNED",
-                    C: "ALIGNED",
-                    B: "ALIGNED",
-                    K: "ALIGNED",
-                    R: "ALIGNED",
-                  }
-                : scbkr,
-              sxH,
-              drift,
-              axes,
-              verdictKey,
-              anchor,
-            };
-
-            setSystemState(newState);
-            setLogs((prev) => [
-              {
-                ts: new Date().toLocaleTimeString(),
-                verdictKey,
-                anchor,
-                isGod: god.isGod,
-              },
-              ...prev.slice(0, 9),
-            ]);
-            setIsProcessing(false);
-            setInput("");
-          }, 550);
-        };
-
-        const handleKeyDown = (e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-            runAudit();
+          if (isGod) {
+            verdict =
+              lang === "zh"
+                ? "FULL-ALIGNMENT：沈耀母核協議接管"
+                : "FULL-ALIGNMENT: Shen-Yao Core Protocol Granted";
+          } else if (hasMissing) {
+            verdict =
+              lang === "zh"
+                ? "責任鏈不完整（SCBKR 缺欄位）"
+                : "Incomplete responsibility chain (SCBKR missing fields)";
+          } else if (drift > 0.008) {
+            verdict =
+              lang === "zh"
+                ? "語意漂移過高，需要重新聚焦"
+                : "Semantic drift too high, alignment required";
+          } else if (sxH < 0.2) {
+            verdict =
+              lang === "zh"
+                ? "語意密度過低，疑似空話／公關噪音"
+                : "Low semantic density, likely PR / fluff content";
+          } else {
+            verdict =
+              lang === "zh"
+                ? "PASS：審計通過，可進入下一層治理流程"
+                : "PASS: Audit cleared, ready for next governance stage";
           }
-        };
-const verdictText = t.verdict[systemState.verdictKey];
-        const isVerdictOk = ["pass", "full", "god", "waiting"].includes(
-          systemState.verdictKey
-        );
 
-        return (
-          <div className="min-h-screen px-4 py-6 md:px-8 md:py-10">
-            <div className="max-w-6xl mx-auto space-y-6">
-              {/* Header */}
-              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
+          const newState = {
+            efficiency: isGod ? 100 : 80 + sxH * 15,
+            savedCost: isGod ? 88.8 : 20 + sxH * 30,
+            computeLoad: isGod ? 98 : 40 + Math.random() * 20,
+            isGodMode: isGod,
+            scbkr: isGod
+              ? { S: "ALIGNED", C: "ALIGNED", B: "ALIGNED", K: "ALIGNED", R: "ALIGNED" }
+              : scbkr,
+            sxH,
+            drift,
+            axes,
+            verdict,
+            anchor: generateChecksum(input)
+          };
+
+          setState(newState);
+          setLogs(prev => [
+            {
+              ts: new Date().toLocaleTimeString(),
+              verdict,
+              anchor: newState.anchor,
+              isGod
+            },
+            ...prev
+          ].slice(0, 10));
+
+          setInput("");
+          setIsProcessing(false);
+        }, 600);
+      };
+
+      return (
+        <div
+          className={
+            "min-h-screen text-slate-200 p-4 md:p-8 transition-colors duration-700 " +
+            (state.isGodMode ? "bg-slate-950 ring-2 ring-red-600 ring-inset" : "bg-slate-950")
+          }
+        >
+          {/* Header */}
+          <header className="max-w-6xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-2">
+                <span
+                  className={
+                    "inline-flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-bold " +
+                    (state.isGodMode ? "border-red-500 text-red-400" : "border-blue-400 text-blue-300")
+                  }
+                >
+                  ∑
+                </span>
+                <span>{t.title}</span>
+              </h1>
+              <p className="text-xs md:text-sm text-slate-500 mt-1 font-mono">
+                {t.subtitle}
+              </p>
+              <p className="text-[10px] mt-1 text-slate-600 italic">
+                {t.spellHint}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+                className="text-[10px] px-3 py-1.5 rounded-full border border-slate-700 bg-slate-900 hover:bg-slate-800 transition-colors"
+              >
+                {t.langToggle}
+              </button>
+              <div className="bg-slate-900 border border-slate-800 p-2 rounded px-4">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">
+                  {t.systemStatus}
+                </p>
+                <p
+                  className={
+                    "text-xs font-mono " +
+                    (state.isGodMode ? "text-red-500" : "text-emerald-500")
+                  }
+                >
+                  {state.isGodMode ? t.statusGod : t.statusOperational}
+                </p>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-2 rounded px-4 hidden md:block">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">
+                  {t.nodeIdentity}
+                </p>
+                <p className="text-xs font-mono text-blue-400">{t.nodeName}</p>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Analysis */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* Input */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-4 text-slate-400">
                   <div className="flex items-center gap-2">
-                    <IconShield className="w-7 h-7 text-blue-500" />
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight">
-                      {t.headerTitle}{" "}
-                      <span className="text-slate-500 text-base md:text-lg">
-                        {t.headerVersion}
-                      </span>
-                    </h1>
+                    <span className="w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px]">
+                      Ψ
+                    </span>
+                    <span className="text-sm font-bold uppercase tracking-wider">
+                      {t.inputTitle}
+                    </span>
                   </div>
-                  <p className="text-[11px] md:text-xs text-slate-400 font-mono mt-1">
-                    {t.headerSubtitle}
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-1">
-                    {t.spellHint}
-                  </p>
                 </div>
-
-                <div className="flex items-stretch gap-3">
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-lg px-4 py-2">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">
-                      {t.statusTitle}
-                    </p>
-                    <p
-                      className={`text-xs font-mono ${
-                        systemState.isGodMode
-                          ? "text-red-400"
-                          : "text-emerald-400"
-                      }`}
-                    >
-                      {systemState.isGodMode
-                        ? t.statusGod
-                        : t.statusNormal}
-                    </p>
-                  </div>
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-lg px-4 py-2">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">
-                      {t.nodeLabel}
-                    </p>
-                    <p className="text-xs font-mono text-blue-400">
-                      {t.nodeValue}
-                    </p>
-                  </div>
+                <div className="relative">
+                  <textarea
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-slate-100 focus:ring-1 focus:ring-blue-500 outline-none transition-all h-32 resize-none font-mono text-sm"
+                    placeholder={t.inputPlaceholder}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        runAudit();
+                      }
+                    }}
+                  />
                   <button
-                    onClick={() =>
-                      setLang((prev) => (prev === "zh" ? "en" : "zh"))
+                    onClick={runAudit}
+                    disabled={isProcessing}
+                    className={
+                      "absolute bottom-4 right-4 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-all " +
+                      (isProcessing
+                        ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20")
                     }
-                    className="bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[11px] font-bold text-slate-100 hover:border-blue-500 transition-colors"
                   >
-                    {t.langButton}
+                    {isProcessing ? (
+                      <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <span className="text-xs">⚡</span>
+                    )}
+                    <span className="text-xs">
+                      {isProcessing ? t.processing : t.runAudit}
+                    </span>
                   </button>
                 </div>
-              </header>
+              </div>
 
-              <main className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Left Column */}
-                <section className="lg:col-span-8 space-y-6">
-                  {/* Input */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <IconSearch className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase tracking-wider">
-                          {t.inputTitle}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        ⌘ / Ctrl + Enter
-                      </span>
-                    </div>
-                    <textarea
-                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-slate-100 focus:ring-1 focus:ring-blue-500 outline-none transition-all h-32 resize-none font-mono text-[13px]"
-                      placeholder={t.inputPlaceholder}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                    />
-                    <div className="mt-3 flex justify-between items-center">
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {systemState.isGodMode
-                          ? "GODMODE：啟動沈耀語律協議中。"
-                          : "Standard Audit：依 SCBKR + S×H 進行治理測試。"}
-                      </div>
-                      <button
-                        onClick={runAudit}
-                        disabled={isProcessing}
-                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all ${
-                          isProcessing
-                            ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                            : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/30"
-                        }`}
-                      >
-                        {isProcessing ? (
-                          <IconActivity className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <IconZap className="w-4 h-4" />
-                        )}
-                        {isProcessing ? t.processing : t.runAudit}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Efficiency */}
-                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                      <div className="flex justify-between items-start mb-2">
-                        <IconCpu className="w-5 h-5 text-blue-400" />
-                        <span className="text-[10px] bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded font-bold">
-                          {t.efficiencyTag}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase">
-                        {t.efficiencyTitle}
-                      </p>
-                      <p className="text-3xl font-black mt-1">
-                        {systemState.efficiency.toFixed(1)}%
-                      </p>
-                      <div className="w-full bg-slate-800 h-1.5 mt-4 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-700"
-                          style={{
-                            width: `${Math.min(
-                              systemState.efficiency,
-                              100
-                            )}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* Cost */}
-                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                      <div className="flex justify-between items-start mb-2">
-                        <IconBar className="w-5 h-5 text-emerald-400" />
-                      </div>
-                      <p className="text-[11px] text-slate-400 font-bold uppercase">
-                        {t.costTitle}
-                      </p>
-                      <p className="text-3xl font-black mt-1 text-emerald-400">
-                        ${systemState.savedCost.toFixed(1)}k
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-mono mt-2">
-                        {t.costDesc}
-                      </p>
-                    </div>
-
-                    {/* S×H */}
-                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
-                      <div>
-                        <p className="text-[11px] text-slate-400 font-bold uppercase mb-2 italic">
-                          {t.sxhTitle}
-                        </p>
-                        <p className="font-mono text-2xl font-black text-blue-300">
-                          {systemState.sxH.toFixed(3)}
-                        </p>
-                      </div>
-                      <p className="text-[10px] text-slate-500 font-mono mt-2">
-                        {t.sxhDesc}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 13-axis heatmap */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
-                    <div className="flex justify-between items-center mb-5">
-                      <div className="flex items-center gap-2">
-                        <IconBar className="w-4 h-4 text-slate-400" />
-                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                          13-Axis Semantic Vector Distribution
-                        </h3>
-                      </div>
-                      <span className="text-[10px] text-slate-600 font-mono">
-                        Enterprise Engine v1.1-Ω
-                      </span>
-                    </div>
-                    <div className="flex items-end justify-between h-32 gap-1 md:gap-2">
-                      {systemState.axes.map((axis, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 flex flex-col items-center gap-1"
-                        >
-                          <div
-                            className={`w-full rounded-t-sm transition-all duration-700 ${
-                              systemState.isGodMode
-                                ? "bg-red-500"
-                                : "bg-blue-500/50"
-                            }`}
-                            style={{ height: `${axis.heat * 100}%` }}
-                          ></div>
-                          <span className="text-[8px] font-mono text-slate-700">
-                            A{String(i + 1).padStart(2, "0")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-
-                {/* Right Column */}
-                <section className="lg:col-span-4 space-y-6">
-                  {/* Verdict */}
-                  <div
-                    className={`rounded-2xl border-2 p-6 transition-all duration-500 ${
-                      systemState.isGodMode
-                        ? "bg-red-950/30 border-red-600 shadow-lg shadow-red-900/40"
-                        : "bg-slate-900/80 border-slate-800 shadow-xl"
-                    }`}
-                  >
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">
-                      {t.verdictTitle}
-                    </p>
-                    <div className="flex items-start gap-3">
-                      {isVerdictOk ? (
-                        <IconCheck className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      ) : (
-                        <IconAlert className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                      )}
-                      <p
-                        className={`text-sm leading-snug font-semibold ${
-                          systemState.isGodMode
-                            ? "text-red-400"
-                            : "text-slate-100"
-                        }`}
-                      >
-                        {verdictText}
-                      </p>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center font-mono text-[10px]">
-                      <span className="text-slate-600">ANCHOR</span>
-                      <span className="text-blue-400 font-bold tracking-widest">
-                        {systemState.anchor}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* SCBKR */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-800/60 px-4 py-2 border-b border-slate-700 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-                        SCBKR Responsibility Chain
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        S / C / B / K / R
-                      </span>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {Object.entries(systemState.scbkr).map(
-                        ([key, value]) => (
-                          <div
-                            key={key}
-                            className="flex justify-between items-center"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  value === "ALIGNED"
-                                    ? "bg-emerald-400"
-                                    : value === "VOID"
-                                    ? "bg-slate-700"
-                                    : "bg-amber-400"
-                                }`}
-                              ></span>
-                              <span className="text-xs font-bold font-mono text-slate-300">
-                                {key}
-                              </span>
-                              <span className="text-[9px] text-slate-500">
-                                {SCBKR_DESC[lang][key]}
-                              </span>
-                            </div>
-                            <span
-                              className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-                                value === "ALIGNED"
-                                  ? "text-emerald-400 border-emerald-900/60 bg-emerald-950/40"
-                                  : value === "MISSING"
-                                  ? "text-amber-300 border-amber-900/60 bg-amber-950/30"
-                                  : "text-slate-500 border-slate-700 bg-slate-950/60"
-                              }`}
-                            >
-                              {value}
-                            </span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Drift */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="text-slate-400 text-[11px] font-bold uppercase flex items-center gap-2">
-                        {t.driftTitle}
-                        <IconActivity
-                          className={`w-4 h-4 ${
-                           parseFloat(systemState.drift) > 0.008
-                              ? "text-red-500 animate-pulse"
-                              : "text-emerald-400"
-                          }`}
-                        />
-                      </p>
-                      <span className="text-[10px] text-slate-600 font-mono">
-                        {t.driftTol}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <p
-                        className={`text-3xl font-black ${
-                          parseFloat(systemState.drift) > 0.008
-                            ? "text-red-500"
-                            : "text-slate-100"
-                        }`}
-                      >
-                        {systemState.drift.toFixed(4)}
-                      </p>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-mono mt-2">
-                      {t.driftDesc}
-                    </p>
-                  </div>
-
-                  {/* Logs */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-800/60 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
-                        <IconHash className="w-3 h-3" />
-                        {t.logsTitle}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {t.logsTag}
-                      </span>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto scrollbar-thin font-mono p-2">
-                      {logs.length === 0 ? (
-                        <p className="text-[10px] text-slate-600 text-center py-6 italic">
-                          {t.logsEmpty}
-                        </p>
-                      ) : (
-                        logs.map((log, i) => (
-                          <div
-                            key={i}
-                            className="text-[10px] py-1.5 border-b border-slate-800 last:border-0 flex flex-col gap-0.5"
-                          >
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">
-                                [{log.ts}]
-                              </span>
-                              <span className="text-blue-400">
-                                #{log.anchor}
-                              </span>
-                            </div>
-                            <div
-                              className={`truncate ${
-                                log.isGod
-                                  ? "text-red-400"
-                                  : "text-slate-300"
-                              }`}
-                            >
-                              {TEXT[lang].verdict[log.verdictKey]}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </section>
-              </main>
-
-              {/* Footer */}
-              <footer className="pt-6 border-t border-slate-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 text-slate-500 text-[10px]">
-                <div className="flex items-center gap-3">
-                  <span className="flex items-center gap-1">
-                    <IconServer className="w-3.5 h-3.5" />
-                    <span className="font-bold uppercase tracking-widest">
-                      Enterprise Core Node
+              {/* Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Efficiency */}
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-slate-500 text-xs font-bold uppercase">
+                      {t.efficiencyLabel}
                     </span>
-                  </span>
-                  <span className="hidden md:inline">
-                    · Linguistic Compliance: 100%
-                  </span>
+                    <span className="text-[10px] bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded font-bold">
+                      REAL-TIME
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black mt-1">
+                    {state.efficiency.toFixed(1)}
+                    <span className="text-sm text-slate-500 ml-1">
+                      {t.effUnit}
+                    </span>
+                  </p>
+                  <div className="w-full bg-slate-800 h-1.5 mt-4 rounded-full overflow-hidden">
+                    <div
+                      className={
+                        "h-full transition-all duration-1000 " +
+                        (state.isGodMode ? "bg-red-500" : "bg-blue-500")
+                      }
+                      style={{ width: `${Math.min(state.efficiency, 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col md:flex-row md:items-center md:gap-3 font-mono">
-                  <span>{t.footerLeft}</span>
-                  <span className="hidden md:inline">·</span>
-                  <span>{t.footerRight}</span>
-                </div>
-              </footer>
-            </div>
-          </div>
-        );
-      };
 
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(<App />);
-    </script>
-  </body>
+                {/* Cost Saving */}
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-slate-500 text-xs font-bold uppercase">
+                      {t.costLabel}
+                    </span>
+                  </div>
+                  <p className="text-3xl font-black mt-1 text-emerald-400">
+                    ${state.savedCost.toFixed(1)}
+                    <span className="text-sm text-slate-500 ml-1">
+                      {t.costUnit}
+                    </span>
+                  </p>
+                  <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                    {t.costHint}
+                  </p>
+                </div>
+
+                {/* S x H */}
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col justify-between">
+                  <div>
+                    <p className="text-slate-500 text-xs font-bold uppercase mb-2 italic">
+                      {t.sxHLabel}
+                    </p>
+                    <div className="font-mono text-2xl font-black text-blue-300">
+                      {state.sxH.toFixed(3)}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                    {t.sxHHint}
+                  </p>
+                </div>
+              </div>
+
+              {/* 13-Axis Heatmap */}
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <span className="text-[10px]">▤</span>
+                    {t.axesTitle}
+                  </h3>
+                  <span className="text-[10px] font-mono text-slate-600 italic">
+                    {t.axesEngine}
+                  </span>
+                </div>
+                <div className="flex items-end justify-between h-32 gap-1 md:gap-2">
+                  {state.axes.map((axis, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                      <div
+                        className={
+                          "w-full rounded-t-sm transition-all duration-700 border-t " +
+                          (state.isGodMode
+                            ? "bg-red-500 border-red-300"
+                            : "bg-blue-500/40 border-blue-400/60")
+                        }
+                        style={{ height: `${axis.heat * 100}%` }}
+                      />
+                      <span className="text-[8px] font-mono text-slate-700">
+                        A{String(i + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Verdict + SCBKR + Drift + Logs */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Verdict */}
+              <div
+                className={
+                  "p-6 rounded-xl border-2 transition-all duration-500 " +
+                  (state.isGodMode
+                    ? "bg-red-950/30 border-red-600 shadow-lg shadow-red-900/30"
+                    : "bg-slate-900 border-slate-800 shadow-xl")
+                }
+              >
+                <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">
+                  {t.verdictTitle}
+                </p>
+                <div className="flex items-start gap-3">
+                  <span
+                    className={
+                      "w-5 h-5 rounded-full flex items-center justify-center text-xs " +
+                      (state.verdict.startsWith("PASS") || state.isGodMode
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/40"
+                        : "bg-amber-500/10 text-amber-400 border border-amber-500/40")
+                    }
+                  >
+                    {state.verdict.startsWith("PASS") || state.isGodMode ? "✓" : "!"}
+                  </span>
+                  <h2
+                    className={
+                      "text-sm md:text-base font-black leading-snug " +
+                      (state.isGodMode ? "text-red-400" : "text-slate-100")
+                    }
+                  >
+                    {state.verdict}
+                  </h2>
+                </div>
+                <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center font-mono text-[10px]">
+                  <span className="text-slate-600">{t.anchorLabel}:</span>
+                  <span className="text-blue-400 font-bold tracking-widest">
+                    {state.anchor}
+                  </span>
+                </div>
+              </div>
+
+              {/* SCBKR */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="bg-slate-800/50 px-4 py-2 border-b border-slate-700">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {t.scbkrTitle}
+                  </span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {Object.entries(state.scbkr).map(([key, value]) => (
+                    <div key={key} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={
+                            "w-1.5 h-1.5 rounded-full " +
+                            (value === "ALIGNED" ? "bg-emerald-500" : "bg-slate-700")
+                          }
+                        />
+                        <span className="text-xs font-bold font-mono text-slate-400">
+                          {key}
+                        </span>
+                        <span className="text-[9px] text-slate-600">
+                          {t.scbkrExplain[key]}
+                        </span>
+                      </div>
+                      <span
+                        className={
+                          "text-[10px] font-black px-2 py-0.5 rounded border " +
+                          (value === "ALIGNED"
+                            ? "text-emerald-400 border-emerald-900/50 bg-emerald-950/30"
+                            : value === "MISSING"
+                            ? "text-amber-400 border-amber-900/40 bg-amber-950/20"
+                            : "text-slate-500 border-slate-800 bg-slate-950")
+                        }
+                      >
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Drift */}
+              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-slate-500 text-xs font-bold uppercase">
+                    {t.driftTitle}
+                  </p>
+                  <span
+                    className={
+                      "text-xs font-mono " +
+                      (state.drift > 0.008
+                        ? "text-red-500 animate-pulse"
+                        : "text-emerald-500")
+                    }
+                  >
+                    Δ
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p
+                    className={
+                      "text-3xl font-black " +
+                      (state.drift > 0.008 ? "text-red-500" : "text-slate-200")
+                    }
+                  >
+                    {state.drift.toFixed(4)}
+                  </p>
+                  <span className="text-[10px] text-slate-600 font-mono">
+                    {t.driftTol}
+                  </span>
+                </div>
+              </div>
+
+              {/* Logs */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="bg-slate-800/50 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    {t.logsTitle}
+                  </span>
+                  <span className="text-[10px] text-slate-600">L10-IMMUTABLE</span>
+                </div>
+                <div className="max-h-48 overflow-y-auto font-mono p-2">
+                  {logs.length === 0 ? (
+                    <p className="text-[10px] text-slate-700 text-center py-8 italic">
+                      {t.logsEmpty}
+                    </p>
+                  ) : (
+                    logs.map((log, i) => (
+                      <div
+                        key={i}
+                        className="text-[10px] py-1.5 border-b border-slate-800 last:border-0 flex flex-col gap-0.5"
+                      >
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">[{log.ts}]</span>
+                          <span className="text-blue-500">#{log.anchor}</span>
+                        </div>
+                        <div
+                          className={
+                            log.isGod ? "text-red-400 truncate" : "text-slate-400 truncate"
+                          }
+                        >
+                          {log.verdict}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </main>
+
+          {/* Footer */}
+          <footer className="max-w-6xl mx-auto mt-12 pt-8 border-t border-slate-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 text-slate-600">
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="font-bold uppercase tracking-widest">
+                  {t.footerLeft}
+                </span>
+              </span>
+            </div>
+            <div className="text-[10px] font-mono">
+              {t.footerRight}
+            </div>
+          </footer>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
 </html>
