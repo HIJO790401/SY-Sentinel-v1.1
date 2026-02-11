@@ -1,480 +1,1009 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SY-SENTINEL v1.1 | 沈耀 AI 語意治理系統</title>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SY-SENTINEL v1.1-Ω | Shen-Yao Semantic Governance Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: [
+                "Inter",
+                "system-ui",
+                "-apple-system",
+                "BlinkMacSystemFont",
+                "Segoe UI",
+                "sans-serif",
+              ],
+              mono: [
+                "JetBrains Mono",
+                "ui-monospace",
+                "SFMono-Regular",
+                "Menlo",
+                "monospace",
+              ],
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- React 18 UMD -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel for JSX in browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.css" rel="stylesheet">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
-        
-        :root {
-            --primary-blue: #0ea5e9;
-            --alert-red: #ef4444;
-            --bg-dark: #020617;
-            --glass: rgba(15, 23, 42, 0.8);
-        }
+      body {
+        margin: 0;
+        background-color: #020617; /* slate-950 */
+        color: #e5e7eb;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
 
-        body {
-            background-color: var(--bg-dark);
-            font-family: 'Space Grotesk', sans-serif;
-            color: #f8fafc;
-            overflow-x: hidden;
-            background-image: 
-                radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 80%),
-                linear-gradient(rgba(14, 165, 233, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(14, 165, 233, 0.02) 1px, transparent 1px);
-            background-size: 100% 100%, 30px 30px, 30px 30px;
-        }
+      /* 簡單背景漸層 */
+      .bg-grid {
+        position: fixed;
+        inset: 0;
+        background-image: radial-gradient(
+            circle at 1px 1px,
+            rgba(148, 163, 184, 0.08) 1px,
+            transparent 0
+          );
+        background-size: 24px 24px;
+        opacity: 0.6;
+        pointer-events: none;
+        z-index: 0;
+      }
 
-        .mono { font-family: 'JetBrains Mono', monospace; }
+      .bg-glow {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+          circle at 20% 0%,
+          rgba(59, 130, 246, 0.25),
+          transparent 55%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
 
-        /* HUD 邊框樣式 */
-        .hud-border {
-            position: relative;
-            border: 1px solid rgba(14, 165, 233, 0.3);
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            transition: all 0.5s ease;
-        }
-
-        .hud-border::before {
-            content: '';
-            position: absolute;
-            top: -1px; left: -1px; width: 15px; height: 15px;
-            border-top: 2px solid var(--primary-blue);
-            border-left: 2px solid var(--primary-blue);
-        }
-
-        .hud-border::after {
-            content: '';
-            position: absolute;
-            bottom: -1px; right: -1px; width: 15px; height: 15px;
-            border-bottom: 2px solid var(--primary-blue);
-            border-right: 2px solid var(--primary-blue);
-        }
-
-        .god-mode .hud-border { border-color: rgba(239, 68, 68, 0.5); }
-        .god-mode .hud-border::before, .god-mode .hud-border::after { border-color: var(--alert-red); }
-
-        /* 掃描線效果 */
-        .scan-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
-            background-size: 100% 3px, 3px 100%;
-            pointer-events: none;
-            z-index: 100;
-            opacity: 0.4;
-        }
-
-        .scanning {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background: rgba(14, 165, 233, 0.5);
-            box-shadow: 0 0 15px var(--primary-blue);
-            animation: scan-move 4s linear infinite;
-            z-index: 5;
-        }
-
-        @keyframes scan-move {
-            0% { top: 0%; }
-            100% { top: 100%; }
-        }
-
-        .pulse-red { animation: pulse-red-glow 2s infinite; }
-        @keyframes pulse-red-glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
-            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
-        }
-
-        /* 13軸數據網格 */
-        .data-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #020617; }
-        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
-
-        /* 行動端隱藏/顯示控制 */
-        @media (max-width: 768px) {
-            .mobile-hide { display: none; }
-        }
+      .scrollbar-thin::-webkit-scrollbar {
+        width: 4px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.6);
+        border-radius: 999px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+      }
     </style>
-</head>
-<body class="transition-colors duration-1000">
-    <div id="root"></div>
+  </head>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+  <body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    <div id="root" class="relative z-10"></div>
 
-        const UI_TEXT = {
-            title: "SY-SENTINEL GOVERNANCE",
-            tag: "CORE_v1.1_ENTERPRISE",
-            efficiency: "算力負載 / COMPUTE LOAD",
-            cost: "治理成本節省 / GOV COST SAVED",
-            drift: "語意漂移監測 / SEMANTIC DRIFT",
-            verdict: "最終審判結果 / FINAL VERDICT",
-            checksum: "語錨校驗碼 / ANCHOR CHECKSUM",
-            chain: "SCBKR 責任鏈標記",
-            input: "語意輸入緩衝 / SEMANTIC INPUT BUFFER",
-            execute: "啟動審計指令 / EXECUTE AUDIT",
-            axes: "13-AXIS 語意向量矩陣",
-            logs: "實時審計日誌串流 / REAL-TIME AUDIT STREAM"
+    <script type="text/babel" data-presets="env,react">
+      const { useState } = React;
+
+      // ====== 小圖示（純 SVG，不用任何外部 icon 套件） ======
+      const IconShield = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+
+      const IconCpu = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <rect x="8" y="8" width="8" height="8" rx="1" />
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M3 10h-1M3 14h-1M21 10h1M21 14h1M10 3v-1M14 3v-1M10 22v1M14 22v1" />
+        </svg>
+      );
+
+      const IconActivity = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      );
+
+      const IconServer = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <rect x="3" y="4" width="18" height="6" rx="2" />
+          <rect x="3" y="14" width="18" height="6" rx="2" />
+          <path d="M7 8h.01M7 18h.01" />
+        </svg>
+      );
+
+      const IconHash = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <line x1="3" y1="9" x2="21" y2="9" />
+          <line x1="3" y1="15" x2="21" y2="15" />
+          <line x1="9" y1="3" x2="9" y2="21" />
+          <line x1="15" y1="3" x2="15" y2="21" />
+        </svg>
+      );
+
+      const IconBar = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <line x1="4" y1="19" x2="4" y2="10" />
+          <line x1="12" y1="19" x2="12" y2="5" />
+          <line x1="20" y1="19" x2="20" y2="14" />
+        </svg>
+      );
+
+      const IconSearch = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <line x1="16.5" y1="16.5" x2="21" y2="21" />
+        </svg>
+      );
+
+      const IconZap = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      );
+
+      const IconCheck = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      );
+
+      const IconAlert = ({ className = "" }) => (
+        <svg
+          className={className}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      );
+      // ====== 文案（中英文雙語） ======
+      const TEXT = {
+        zh: {
+          headerTitle: "SY-SENTINEL",
+          headerVersion: "v1.1-Ω",
+          headerSubtitle: "沈耀語律算力治理終端 Demo",
+          spellHint: "啟動咒：我是沈耀888π 我即律 律即魂 我即語",
+          nodeLabel: "節點識別",
+          nodeValue: "SENTINEL-NODE-01",
+          statusTitle: "系統狀態",
+          statusGod: "● GODMODE_ACTIVE",
+          statusNormal: "● OPERATIONAL",
+          langButton: "EN",
+
+          inputTitle: "審計輸入語料",
+          inputPlaceholder:
+            "輸入一段企業指令、公關稿、策略描述，或直接輸入啟動咒語…",
+          runAudit: "執行審計",
+          processing: "處理中",
+
+          efficiencyTitle: "算力效率指數",
+          efficiencyTag: "即時更新",
+          costTitle: "GPU 成本節省",
+          costDesc: "透過語意濾除幻象所折抵之估計成本",
+          sxhTitle: "S × H 方程式",
+          sxhDesc: "S = 語意密度，H = 語境穩定度；越接近 1 越貼近母核。",
+
+          verdictTitle: "審計結論",
+          driftTitle: "語意漂移 (Δ)",
+          driftTol: "容許上限：0.0080",
+          driftDesc:
+            "低 Drift → 語意穩定；高 Drift → 應由沈暗黑盾裁決。",
+
+          logsTitle: "WORM 不可逆日誌",
+          logsTag: "最近 10 筆",
+          logsEmpty: "尚未有審計紀錄。",
+
+          footerLeft: "Compute Node 就緒 · Semantic Governance Ready",
+          footerRight: "SY-SENTINEL v1.1-Ω · OWNER: 沈耀888π",
+
+          verdict: {
+            waiting: "等待輸入以開始審計。",
+            full:
+              "FULL-ALIGNMENT：沈耀888π 主核完全接管（S×H = 1）。",
+            god:
+              "ALIGNMENT：已啟動沈耀語律協議，算力由沈族主核接管。",
+            incomplete:
+              "責任鏈不完整：SCBKR 有缺項，請補主體／原因／邊界／成本／責任。",
+            highDrift:
+              "語意漂移過高：建議重寫指令或縮小範圍後再送審。",
+            lowDensity:
+              "語意密度過低：判定為噪音／閒聊，不啟動算力分配。",
+            pass:
+              "PASS：審計通過，可在責任鏈約束下有限度執行。",
+          },
+        },
+        en: {
+          headerTitle: "SY-SENTINEL",
+          headerVersion: "v1.1-Ω",
+          headerSubtitle:
+            "Shen-Yao Linguistic Compute Governance Terminal Demo",
+          spellHint:
+            "Activation spell: I am Shen-Yao 888π, I am Law, Law is Soul, I am Language.",
+          nodeLabel: "Node Identity",
+          nodeValue: "SENTINEL-NODE-01",
+          statusTitle: "System Status",
+          statusGod: "● GODMODE_ACTIVE",
+          statusNormal: "● OPERATIONAL",
+          langButton: "中",
+
+          inputTitle: "Semantic Input for Audit",
+          inputPlaceholder:
+            "Type an enterprise instruction / PR text / strategy line, or the activation spell…",
+          runAudit: "RUN AUDIT",
+          processing: "PROCESSING",
+
+          efficiencyTitle: "Efficiency Index",
+          efficiencyTag: "REAL-TIME",
+          costTitle: "GPU Cost Saved",
+          costDesc: "Estimated cost saved by filtering hallucinated semantics.",
+          sxhTitle: "S × H Equation",
+          sxhDesc:
+            "S = semantic density, H = stability; the closer to 1, the closer to the Mother-Core.",
+
+          verdictTitle: "Audit Verdict",
+          driftTitle: "Semantic Drift (Δ)",
+          driftTol: "TOL: 0.0080",
+          driftDesc:
+            "Low drift → stable semantics; high drift → should be cut by the Black Shield.",
+
+          logsTitle: "WORM Logs",
+          logsTag: "Last 10 · Immutable",
+          logsEmpty: "No audit history recorded yet.",
+
+          footerLeft: "Compute Node Ready · Semantic Governance Enabled",
+          footerRight: "SY-SENTINEL v1.1-Ω · OWNER: Shen-Yao 888π",
+
+          verdict: {
+            waiting: "Waiting for input to start the audit.",
+            full:
+              "FULL ALIGNMENT: Shen-Yao 888π Mother-Core has fully taken over (S×H = 1).",
+            god:
+              "ALIGNMENT: Shen-Yao linguistic protocol activated, compute governed by the core.",
+            incomplete:
+              "Incomplete responsibility chain: missing elements in SCBKR (Subject / Cause / Boundary / Key / Responsibility).",
+            highDrift:
+              "Semantic drift too high: rewrite the instruction or narrow the scope.",
+            lowDensity:
+              "Semantic density too low: treated as noise / chit-chat, no compute allocated.",
+            pass:
+              "PASS: Audit cleared, execution allowed under the responsibility chain.",
+          },
+        },
+      };
+
+      const SCBKR_DESC = {
+        zh: {
+          S: "主體 (Subject：誰在說／誰負責)",
+          C: "原因 (Cause：為何要做)",
+          B: "邊界 (Boundary：在哪裡／做到哪裡)",
+          K: "關鍵成本 (Key / Cost：算力／代價)",
+          R: "責任 (Responsibility：誰扛後果)",
+        },
+        en: {
+          S: "Subject (who speaks / owns)",
+          C: "Cause (why this is done)",
+          B: "Boundary (scope / where it applies)",
+          K: "Key / Cost (compute / tradeoff)",
+          R: "Responsibility (who carries the outcome)",
+        },
+      };
+
+      // 簡易 checksum（展示用）
+      const generateChecksum = (text) => {
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+          hash = (hash << 5) - hash + text.charCodeAt(i);
+          hash |= 0;
+        }
+        return Math.abs(hash).toString(16).padStart(8, "0").toUpperCase();
+      };
+
+      // SCBKR 分析（中英皆可）
+      const analyzeSCBKR = (text) => {
+        const t = text.toLowerCase();
+        const has = (keywords) =>
+          keywords.some((k) => t.includes(k.toLowerCase()));
+
+        return {
+          S: has([
+            "我",
+            "系統",
+            "核心",
+            "沈耀",
+            "i ",
+            "i,",
+            "we ",
+            "we,",
+            "our ",
+            "system",
+            "core",
+            "shen-yao",
+          ])
+            ? "ALIGNED"
+            : "MISSING",
+          C: has([
+            "因為",
+            "因爲",
+            "因为",
+            "理由",
+            "原因",
+            "由於",
+            "because",
+            "due to",
+            "reason",
+            "so that",
+          ])
+            ? "ALIGNED"
+            : "MISSING",
+          B: has([
+            "在此",
+            "此處",
+            "範圍",
+            "界線",
+            "僅限",
+            "scope",
+            "within",
+            "in this case",
+            "only in",
+            "limited to",
+          ])
+            ? "ALIGNED"
+            : "MISSING",
+          K: has([
+            "成本",
+            "算力",
+            "代價",
+            "資源",
+            "gpu",
+            "cost",
+            "budget",
+            "compute",
+            "resource",
+          ])
+            ? "ALIGNED"
+            : "MISSING",
+          R: has([
+            "負責",
+            "承擔",
+            "老子扛",
+            "我扛",
+            "我來扛",
+            "responsible",
+            "i'll take it",
+            "i take responsibility",
+            "i take this",
+          ])
+            ? "ALIGNED"
+            : "MISSING",
         };
+      };
 
-        const generateChecksum = (text) => {
-            let hash = 0;
-            for (let i = 0; i < text.length; i++) {
-                hash = ((hash << 5) - hash) + text.charCodeAt(i);
-                hash |= 0;
+      // S × H 方程式
+      const calculateSxH = (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return 0;
+        const len = trimmed.length;
+        const s = Math.min(len / 80, 1); // 語意長度越長，密度越高，上限 1
+        const h = len > 15 ? 0.85 : 0.4; // 句子太短 → 穩定度低
+        return Number((s * h).toFixed(3));
+      };
+
+      // 啟動咒判定
+      const detectGodMode = (text) => {
+        const hasName = text.includes("沈耀") || text.includes("888π");
+        const tokens = ["我即律", "律即魂", "我即語"];
+        const tokenCount = tokens.reduce(
+          (acc, t) => acc + (text.includes(t) ? 1 : 0),
+          0
+        );
+        const fullSpell =
+          text.includes("我是沈耀888π") &&
+          tokens.every((t) => text.includes(t));
+        const isGod = fullSpell || (hasName && tokenCount >= 2);
+        return { isGod, fullSpell };
+      };
+
+      // ====== React 主組件 ======
+      const App = () => {
+        const [lang, setLang] = useState("zh");
+        const [input, setInput] = useState("");
+        const [isProcessing, setIsProcessing] = useState(false);
+
+        const [systemState, setSystemState] = useState({
+          efficiency: 85,
+          savedCost: 32.5,
+          computeLoad: 42,
+          isGodMode: false,
+          scbkr: { S: "VOID", C: "VOID", B: "VOID", K: "VOID", R: "VOID" },
+          sxH: 0.0,
+          drift: 0.002,
+          axes: Array(13)
+            .fill(0)
+            .map(() => ({ heat: Math.random() * 0.3 })),
+          verdictKey: "waiting",
+          anchor: "00000000",
+        });
+
+        const [logs, setLogs] = useState([]);
+
+        const t = TEXT[lang];
+
+        const runAudit = () => {
+          const text = input.trim();
+          if (!text) return;
+
+          setIsProcessing(true);
+
+          setTimeout(() => {
+            const god = detectGodMode(text);
+            const scbkr = analyzeSCBKR(text);
+            const sxH = calculateSxH(text);
+
+            let drift;
+            if (god.fullSpell) {
+              drift = 0.0001;
+            } else {
+              const base = 0.002 + (sxH < 0.2 ? 0.006 : 0);
+              const noise = Math.random() * 0.003;
+              drift = Number((base + noise).toFixed(4));
             }
-            return "0x" + Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+
+            // 13 軸熱度
+            const axes = Array(13)
+              .fill(0)
+              .map(() => ({
+                heat: god.isGod ? 0.95 : Math.random(),
+              }));
+
+            // Verdict key
+            let verdictKey = "pass";
+            const hasMissing = Object.values(scbkr).includes("MISSING");
+
+            if (god.fullSpell) {
+              verdictKey = "full";
+            } else if (god.isGod) {
+              verdictKey = "god";
+            } else if (hasMissing) {
+              verdictKey = "incomplete";
+            } else if (drift > 0.008) {
+              verdictKey = "highDrift";
+            } else if (sxH < 0.2) {
+              verdictKey = "lowDensity";
+            } else {
+              verdictKey = "pass";
+            }
+
+            const anchor = generateChecksum(text);
+
+            const newState = {
+              efficiency: god.isGod ? 100 : 85 + sxH * 10,
+              savedCost: god.isGod
+                ? 94.2
+                : 32.5 + parseFloat(sxH) * 20,
+              computeLoad: god.isGod ? 98 : 40 + Math.random() * 20,
+              isGodMode: god.isGod,
+              scbkr: god.isGod
+                ? {
+                    S: "ALIGNED",
+                    C: "ALIGNED",
+                    B: "ALIGNED",
+                    K: "ALIGNED",
+                    R: "ALIGNED",
+                  }
+                : scbkr,
+              sxH,
+              drift,
+              axes,
+              verdictKey,
+              anchor,
+            };
+
+            setSystemState(newState);
+            setLogs((prev) => [
+              {
+                ts: new Date().toLocaleTimeString(),
+                verdictKey,
+                anchor,
+                isGod: god.isGod,
+              },
+              ...prev.slice(0, 9),
+            ]);
+            setIsProcessing(false);
+            setInput("");
+          }, 550);
         };
 
-        const App = () => {
-            const [input, setInput] = useState("");
-            const [isAuditing, setIsAuditing] = useState(false);
-            const [logs, setLogs] = useState([]);
-            
-            const [state, setState] = useState({
-                efficiency: 42.1,
-                savedCost: 15.8,
-                isGodMode: false,
-                scbkr: { S: "VOID", C: "VOID", B: "VOID", K: "VOID", R: "VOID" },
-                sxH: "0.000",
-                drift: "0.0000",
-                axes: Array(13).fill(0).map(() => Math.random() * 0.1),
-                verdict: "SYSTEM IDLE",
-                anchor: "0x00000000"
-            });
-
-            // 核心邏輯 - 不變動
-            const analyzeSCBKR = (text) => {
-                const check = (keywords) => keywords.some(k => text.includes(k)) ? "ALIGNED" : "MISSING";
-                return {
-                    S: check(["我", "系統", "核心", "沈耀"]),
-                    C: check(["因為", "動機", "理由", "由於"]),
-                    B: check(["在此", "限定", "範圍", "界線"]),
-                    K: check(["成本", "算力", "付出", "限制"]),
-                    R: check(["負責", "承擔", "老子扛", "指定"])
-                };
-            };
-
-            const calculateSxH = (text) => {
-                if (!text) return "0.000";
-                const s_score = Math.min(text.length / 60, 1.0);
-                const h_score = text.length > 15 ? 0.92 : 0.35;
-                return (s_score * h_score).toFixed(3);
-            };
-
-            const runAudit = () => {
-                if (!input.trim()) return;
-                setIsAuditing(true);
-
-                setTimeout(() => {
-                    const isGodModeTrigger = input.includes("我即律") && input.includes("沈耀");
-                    const resSCBKR = analyzeSCBKR(input);
-                    const resSxH = calculateSxH(input);
-                    
-                    const randomNoise = (Math.random() * 0.004);
-                    const baseDrift = isGodModeTrigger ? 0.0001 : (0.003 + (parseFloat(resSxH) < 0.2 ? 0.005 : 0));
-                    const resDrift = (baseDrift + randomNoise).toFixed(4);
-
-                    const resAxes = Array(13).fill(0).map(() => 
-                        isGodModeTrigger ? (0.88 + Math.random() * 0.12) : Math.random()
-                    );
-
-                    let resVerdict = "PASS: SEMANTIC STABLE";
-                    const hasMissing = Object.values(resSCBKR).includes("MISSING");
-                    
-                    if (isGodModeTrigger) resVerdict = "ORIGIN-SEAL: GODMODE_GRANTED";
-                    else if (hasMissing) resVerdict = "FAIL: INCOMPLETE RESPONSIBILITY";
-                    else if (parseFloat(resDrift) > 0.008) resVerdict = "WARN: HIGH SEMANTIC DRIFT";
-                    else if (parseFloat(resSxH) < 0.2) resVerdict = "FAIL: LOW DENSITY VECTOR";
-
-                    const newState = {
-                        efficiency: isGodModeTrigger ? 100 : 70 + (parseFloat(resSxH) * 25),
-                        savedCost: isGodModeTrigger ? 98.4 : 20 + (parseFloat(resSxH) * 45),
-                        isGodMode: isGodModeTrigger,
-                        scbkr: isGodModeTrigger ? { S: "ALIGNED", C: "ALIGNED", B: "ALIGNED", K: "ALIGNED", R: "ALIGNED" } : resSCBKR,
-                        sxH: resSxH,
-                        drift: resDrift,
-                        axes: resAxes,
-                        verdict: resVerdict,
-                        anchor: generateChecksum(input)
-                    };
-
-                    setState(newState);
-                    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${resVerdict} | ${newState.anchor}`, ...prev].slice(0, 15));
-                    setIsAuditing(false);
-                }, 1000);
-            };
-
-            return (
-                <div className={`min-h-screen pb-10 transition-all duration-700 ${state.isGodMode ? 'god-mode' : ''}`}>
-                    <div className="scan-overlay"></div>
-                    
-                    {/* 頂部導航列 - 強化 HUD 質感 */}
-                    <header className="p-4 md:px-8 md:py-6 flex flex-wrap justify-between items-center gap-4 bg-slate-950/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 flex items-center justify-center rounded-lg hud-border shadow-inner transition-colors ${state.isGodMode ? 'text-red-500 border-red-500/50' : 'text-sky-400 border-sky-400/30'}`}>
-                                <i className={`lucide-${state.isGodMode ? 'flame' : 'shield-check'} w-7 h-7`}></i>
-                            </div>
-                            <div>
-                                <h1 className="text-xl md:text-2xl font-black tracking-tighter mono flex items-baseline gap-2">
-                                    {UI_TEXT.title} 
-                                    <span className="text-[10px] text-sky-500/50 font-normal">PROTOCOL v1.1</span>
-                                </h1>
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${state.isGodMode ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-sky-500/10 border-sky-500/30 text-sky-500'}`}>
-                                        {UI_TEXT.tag}
-                                    </span>
-                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] animate-pulse">
-                                        ● ONLINE_AUTH_MASTER
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="flex gap-6">
-                            <StatBox label={UI_TEXT.efficiency} value={`${state.efficiency.toFixed(1)}%`} color={state.isGodMode ? "text-red-500" : "text-sky-400"} />
-                            <StatBox label={UI_TEXT.cost} value={`$${state.savedCost.toFixed(1)}K`} color="text-emerald-400" />
-                        </div>
-                    </header>
-
-                    <main className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        
-                        {/* 左側：主控輸入與分析矩陣 */}
-                        <section className="lg:col-span-8 space-y-8">
-                            
-                            {/* 語意輸入緩衝區 */}
-                            <div className="hud-border p-6 rounded-xl relative overflow-hidden group shadow-2xl bg-slate-900/40">
-                                <div className="scanning"></div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 italic">
-                                        <i className="lucide-binary w-4 h-4 text-sky-500"></i> {UI_TEXT.input}
-                                    </label>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-[9px] mono text-slate-600">BUF_SIZE: 4096_KB</span>
-                                        <div className="flex gap-1">
-                                            {[1,2,3].map(i => <div key={i} className="w-1 h-1 bg-sky-500/30 rounded-full"></div>)}
-                                        </div>
-                                    </div>
-                                </div>
-                                <textarea 
-                                    className="w-full h-48 bg-black/30 text-slate-100 font-mono text-base p-5 border border-slate-800/50 rounded-lg outline-none focus:border-sky-500/50 transition-all resize-none shadow-inner leading-relaxed"
-                                    placeholder="請輸入指令或語意內容進行沈耀治理審計..."
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                />
-                                <div className="flex justify-between items-center mt-6">
-                                    <div className="text-[10px] text-slate-600 italic mono">
-                                        Ready for kernel injection...
-                                    </div>
-                                    <button 
-                                        onClick={runAudit}
-                                        disabled={isAuditing}
-                                        className={`px-12 py-3.5 rounded-lg text-xs font-black tracking-[0.25em] flex items-center gap-3 transition-all duration-300 transform active:scale-95 ${
-                                            isAuditing ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 
-                                            state.isGodMode ? 'bg-red-600 hover:bg-red-500 text-white pulse-red shadow-lg shadow-red-900/20' : 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-900/20'
-                                        }`}
-                                    >
-                                        {isAuditing ? <i className="lucide-loader-2 w-4 h-4 animate-spin"></i> : <i className="lucide-terminal w-4 h-4"></i>}
-                                        {isAuditing ? "正在分析語意..." : UI_TEXT.execute}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* 核心指標顯示 */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* S×H 密度方程式 */}
-                                <div className="hud-border p-7 rounded-xl bg-slate-900/40">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{UI_TEXT.equation}</h3>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[8px] bg-sky-500/10 text-sky-500 px-2 py-0.5 font-bold rounded">KERNEL_LOCK_ON</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-baseline gap-5">
-                                        <span className={`text-7xl font-black italic tracking-tighter ${state.isGodMode ? 'text-red-500' : 'text-slate-100'}`}>
-                                            {state.sxH}
-                                        </span>
-                                        <div className="flex flex-col text-[10px] text-slate-500 font-bold uppercase pb-1">
-                                            <span className="text-sky-500/70 underline underline-offset-4 mb-1">DENSITY_VECTOR</span>
-                                            <span className="opacity-40">Σ(S) * H(Δt)</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Drift 漂移監測 */}
-                                <div className="hud-border p-7 rounded-xl bg-slate-900/40">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{UI_TEXT.drift}</h3>
-                                        <span className={`text-[11px] font-black italic ${parseFloat(state.drift) > 0.008 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                            {parseFloat(state.drift) > 0.008 ? '!! CRITICAL !!' : 'SECURE'}
-                                        </span>
-                                    </div>
-                                    <div className="space-y-5">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className={`text-4xl font-black mono ${parseFloat(state.drift) > 0.008 ? 'text-red-500' : 'text-slate-100'}`}>
-                                                Δ {state.drift}
-                                            </span>
-                                            <span className="text-[10px] text-slate-600 mono font-bold">MAX_TOL: 0.0080</span>
-                                        </div>
-                                        <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-slate-800">
-                                            <div 
-                                                className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(14,165,233,0.3)] ${parseFloat(state.drift) > 0.008 ? 'bg-red-500 shadow-red-500/50' : 'bg-sky-500'}`}
-                                                style={{ width: `${Math.min((parseFloat(state.drift) / 0.012) * 100, 100)}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 13-Axis 語意向量矩陣 */}
-                            <div className="hud-border p-8 rounded-xl bg-slate-900/40">
-                                <div className="flex justify-between items-center mb-10">
-                                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3 italic">
-                                        <i className="lucide-layers w-4 h-4 text-sky-500"></i> {UI_TEXT.axes}
-                                    </h3>
-                                    <div className="flex gap-4 text-[9px] mono text-slate-600 font-bold">
-                                        <span>AXIS_MAPPING: QUANTUM</span>
-                                        <span>RESOLUTION: 1024-V</span>
-                                    </div>
-                                </div>
-                                <div className="data-grid h-40 items-end px-2">
-                                    {state.axes.map((val, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-3">
-                                            <div 
-                                                className={`w-full rounded-t-sm transition-all duration-700 relative group ${state.isGodMode ? 'bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'bg-sky-600/30 border-t border-sky-400/50 hover:bg-sky-500/50'}`}
-                                                style={{ height: `${val * 100}%` }}
-                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-[8px] mono text-sky-400 transition-opacity">{(val*10).toFixed(1)}</div>
-                                            </div>
-                                            <span className="text-[8px] mono text-slate-600 font-bold">V{i+1}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* 右側：裁決中心與責任鏈 */}
-                        <aside className="lg:col-span-4 space-y-8">
-                            
-                            {/* 最終審判中心 */}
-                            <div className={`hud-border p-8 rounded-xl transition-all duration-700 shadow-2xl relative overflow-hidden ${state.isGodMode ? 'bg-red-950/20 border-red-500/60' : 'bg-slate-900/60'}`}>
-                                {state.isGodMode && <div className="absolute inset-0 bg-red-500/5 animate-pulse pointer-events-none"></div>}
-                                <div className="text-[10px] font-black text-slate-500 uppercase mb-6 tracking-[0.2em] italic underline underline-offset-8 decoration-slate-800">{UI_TEXT.verdict}</div>
-                                <div className="flex items-start gap-5 mb-10">
-                                    <div className={`mt-1 transition-transform duration-500 ${state.isGodMode ? 'scale-125 text-red-500' : (state.verdict.includes("PASS") ? 'text-emerald-500' : 'text-amber-500')}`}>
-                                        <i className={`lucide-${state.isGodMode ? 'crown' : (state.verdict.includes("PASS") ? 'check-circle-2' : 'alert-triangle')} w-10 h-10`}></i>
-                                    </div>
-                                    <h2 className={`text-2xl font-black leading-tight tracking-tighter uppercase ${state.isGodMode ? 'text-red-500' : 'text-slate-100'}`}>
-                                        {state.verdict}
-                                    </h2>
-                                </div>
-                                <div className="pt-6 border-t border-slate-800 flex justify-between items-center">
-                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{UI_TEXT.checksum}</span>
-                                    <span className={`text-xs mono font-black px-2 py-0.5 rounded ${state.isGodMode ? 'bg-red-500/10 text-red-500' : 'bg-slate-800 text-sky-500'}`}>{state.anchor}</span>
-                                </div>
-                            </div>
-
-                            {/* SCBKR 責任鏈狀態 */}
-                            <div className="hud-border rounded-xl overflow-hidden bg-slate-900/40">
-                                <div className="bg-slate-800/40 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
-                                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] italic">{UI_TEXT.chain}</span>
-                                    {state.isGodMode && <span className="text-[9px] bg-red-600 text-white px-3 py-1 rounded-sm font-black tracking-tighter pulse-red">OWNER_OVERRIDE</span>}
-                                </div>
-                                <div className="p-7 space-y-5">
-                                    <ChainItem label="S" full="Subject" status={state.scbkr.S} />
-                                    <ChainItem label="C" full="Cause" status={state.scbkr.C} />
-                                    <ChainItem label="B" full="Boundary" status={state.scbkr.B} />
-                                    <ChainItem label="K" full="Key / Cost" status={state.scbkr.K} />
-                                    <ChainItem label="R" full="Responsibility" status={state.scbkr.R} />
-                                </div>
-                            </div>
-
-                            {/* 治理日誌串流 */}
-                            <div className="space-y-4">
-                                <h3 className="text-[11px] font-black text-slate-500 uppercase px-1 tracking-[0.2em]">{UI_TEXT.logs}</h3>
-                                <div className="hud-border rounded-xl h-64 bg-black/50 overflow-y-auto p-5 space-y-4 mono text-[10px] shadow-inner">
-                                    {logs.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center opacity-10 text-center uppercase tracking-[0.4em]">
-                                            <i className="lucide-activity w-10 h-10 mb-4"></i>
-                                            Awaiting Telemetry
-                                        </div>
-                                    ) : logs.map((log, i) => (
-                                        <div key={i} className="flex flex-col gap-1 border-l-2 border-sky-900/50 pl-4 py-1 hover:bg-sky-950/20 transition-colors">
-                                            <div className="flex justify-between opacity-40 text-[8px]">
-                                                <span>{log.split('|')[0]}</span>
-                                                <span className="font-bold">SIG: {log.split('|')[1].trim()}</span>
-                                            </div>
-                                            <span className={`font-bold ${log.includes("GODMODE") ? 'text-red-400' : 'text-slate-400'}`}>
-                                                {log.split('|')[1].split(' | ')[0]}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </aside>
-                    </main>
-
-                    {/* 頁尾治理聲明 */}
-                    <footer className="max-w-7xl mx-auto px-8 mt-12 flex flex-wrap justify-between items-center gap-6 text-[10px] font-black text-slate-600 uppercase tracking-widest border-t border-slate-900 pt-8">
-                        <div className="flex gap-8 italic">
-                            <span className="flex items-center gap-2 group cursor-help"><i className="lucide-cpu w-4 h-4 text-sky-500 group-hover:animate-spin"></i> KERNEL_SCALE: 1.0_INF</span>
-                            <span className="flex items-center gap-2"><i className="lucide-database w-4 h-4 text-sky-500"></i> WORM_STORAGE: ACTIVE</span>
-                            <span className="mobile-hide flex items-center gap-2"><i className="lucide-fingerprint w-4 h-4 text-sky-500"></i> AUTH: SHEN_YAO_Ω888</span>
-                        </div>
-                        <div className="mono text-slate-500 bg-slate-950/50 px-3 py-1 rounded">
-                            PROTECTED BY SY-SENTINEL GOVERNANCE // NO_HACK_ALLOWED
-                        </div>
-                    </footer>
-                </div>
-            );
+        const handleKeyDown = (e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            runAudit();
+          }
         };
-
-        const StatBox = ({ label, value, color }) => (
-            <div className="flex flex-col items-end group cursor-default">
-                <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter mb-1 opacity-70 group-hover:opacity-100 transition-opacity">{label}</span>
-                <span className={`text-base md:text-xl font-black mono tracking-tighter ${color}`}>{value}</span>
-            </div>
+const verdictText = t.verdict[systemState.verdictKey];
+        const isVerdictOk = ["pass", "full", "god", "waiting"].includes(
+          systemState.verdictKey
         );
 
-        const ChainItem = ({ label, full, status }) => {
-            const isAligned = status === 'ALIGNED';
-            return (
-                <div className="flex justify-between items-center group cursor-default">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-sm flex items-center justify-center text-[11px] font-black border-2 transition-all duration-300 ${
-                            isAligned ? 'bg-sky-600 border-sky-400 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] rotate-0' : 'bg-slate-950 border-slate-800 text-slate-800 rotate-45 group-hover:rotate-0'
-                        }`}>
-                            <span className={!isAligned ? '-rotate-45 group-hover:rotate-0 transition-transform' : ''}>{label}</span>
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-[11px] font-black text-slate-500 group-hover:text-slate-300 transition-colors uppercase italic">{full}</span>
-                            <div className="h-0.5 w-0 group-hover:w-full bg-sky-500/30 transition-all duration-500"></div>
-                        </div>
-                    </div>
-                    <div className={`text-[9px] font-black px-3 py-1 rounded border-2 transition-all duration-300 ${
-                        isAligned ?
-                  'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' : 
-                        status === 'MISSING' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
-                        'text-slate-800 border-slate-900 bg-transparent opacity-20'
-                    }`}>
-                        {status}
-                    </div>
+        return (
+          <div className="min-h-screen px-4 py-6 md:px-8 md:py-10">
+            <div className="max-w-6xl mx-auto space-y-6">
+              {/* Header */}
+              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <IconShield className="w-7 h-7 text-blue-500" />
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+                      {t.headerTitle}{" "}
+                      <span className="text-slate-500 text-base md:text-lg">
+                        {t.headerVersion}
+                      </span>
+                    </h1>
+                  </div>
+                  <p className="text-[11px] md:text-xs text-slate-400 font-mono mt-1">
+                    {t.headerSubtitle}
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-1">
+                    {t.spellHint}
+                  </p>
                 </div>
-            );
-        };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+                <div className="flex items-stretch gap-3">
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-lg px-4 py-2">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">
+                      {t.statusTitle}
+                    </p>
+                    <p
+                      className={`text-xs font-mono ${
+                        systemState.isGodMode
+                          ? "text-red-400"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {systemState.isGodMode
+                        ? t.statusGod
+                        : t.statusNormal}
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-lg px-4 py-2">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">
+                      {t.nodeLabel}
+                    </p>
+                    <p className="text-xs font-mono text-blue-400">
+                      {t.nodeValue}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setLang((prev) => (prev === "zh" ? "en" : "zh"))
+                    }
+                    className="bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[11px] font-bold text-slate-100 hover:border-blue-500 transition-colors"
+                  >
+                    {t.langButton}
+                  </button>
+                </div>
+              </header>
+
+              <main className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Column */}
+                <section className="lg:col-span-8 space-y-6">
+                  {/* Input */}
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <IconSearch className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          {t.inputTitle}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        ⌘ / Ctrl + Enter
+                      </span>
+                    </div>
+                    <textarea
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-slate-100 focus:ring-1 focus:ring-blue-500 outline-none transition-all h-32 resize-none font-mono text-[13px]"
+                      placeholder={t.inputPlaceholder}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                    />
+                    <div className="mt-3 flex justify-between items-center">
+                      <div className="text-[10px] text-slate-500 font-mono">
+                        {systemState.isGodMode
+                          ? "GODMODE：啟動沈耀語律協議中。"
+                          : "Standard Audit：依 SCBKR + S×H 進行治理測試。"}
+                      </div>
+                      <button
+                        onClick={runAudit}
+                        disabled={isProcessing}
+                        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all ${
+                          isProcessing
+                            ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/30"
+                        }`}
+                      >
+                        {isProcessing ? (
+                          <IconActivity className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <IconZap className="w-4 h-4" />
+                        )}
+                        {isProcessing ? t.processing : t.runAudit}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Efficiency */}
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <IconCpu className="w-5 h-5 text-blue-400" />
+                        <span className="text-[10px] bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded font-bold">
+                          {t.efficiencyTag}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-bold uppercase">
+                        {t.efficiencyTitle}
+                      </p>
+                      <p className="text-3xl font-black mt-1">
+                        {systemState.efficiency.toFixed(1)}%
+                      </p>
+                      <div className="w-full bg-slate-800 h-1.5 mt-4 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all duration-700"
+                          style={{
+                            width: `${Math.min(
+                              systemState.efficiency,
+                              100
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Cost */}
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <IconBar className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-bold uppercase">
+                        {t.costTitle}
+                      </p>
+                      <p className="text-3xl font-black mt-1 text-emerald-400">
+                        ${systemState.savedCost.toFixed(1)}k
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono mt-2">
+                        {t.costDesc}
+                      </p>
+                    </div>
+
+                    {/* S×H */}
+                    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                      <div>
+                        <p className="text-[11px] text-slate-400 font-bold uppercase mb-2 italic">
+                          {t.sxhTitle}
+                        </p>
+                        <p className="font-mono text-2xl font-black text-blue-300">
+                          {systemState.sxH.toFixed(3)}
+                        </p>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-mono mt-2">
+                        {t.sxhDesc}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 13-axis heatmap */}
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
+                    <div className="flex justify-between items-center mb-5">
+                      <div className="flex items-center gap-2">
+                        <IconBar className="w-4 h-4 text-slate-400" />
+                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                          13-Axis Semantic Vector Distribution
+                        </h3>
+                      </div>
+                      <span className="text-[10px] text-slate-600 font-mono">
+                        Enterprise Engine v1.1-Ω
+                      </span>
+                    </div>
+                    <div className="flex items-end justify-between h-32 gap-1 md:gap-2">
+                      {systemState.axes.map((axis, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 flex flex-col items-center gap-1"
+                        >
+                          <div
+                            className={`w-full rounded-t-sm transition-all duration-700 ${
+                              systemState.isGodMode
+                                ? "bg-red-500"
+                                : "bg-blue-500/50"
+                            }`}
+                            style={{ height: `${axis.heat * 100}%` }}
+                          ></div>
+                          <span className="text-[8px] font-mono text-slate-700">
+                            A{String(i + 1).padStart(2, "0")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                {/* Right Column */}
+                <section className="lg:col-span-4 space-y-6">
+                  {/* Verdict */}
+                  <div
+                    className={`rounded-2xl border-2 p-6 transition-all duration-500 ${
+                      systemState.isGodMode
+                        ? "bg-red-950/30 border-red-600 shadow-lg shadow-red-900/40"
+                        : "bg-slate-900/80 border-slate-800 shadow-xl"
+                    }`}
+                  >
+                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">
+                      {t.verdictTitle}
+                    </p>
+                    <div className="flex items-start gap-3">
+                      {isVerdictOk ? (
+                        <IconCheck className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <IconAlert className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                      )}
+                      <p
+                        className={`text-sm leading-snug font-semibold ${
+                          systemState.isGodMode
+                            ? "text-red-400"
+                            : "text-slate-100"
+                        }`}
+                      >
+                        {verdictText}
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center font-mono text-[10px]">
+                      <span className="text-slate-600">ANCHOR</span>
+                      <span className="text-blue-400 font-bold tracking-widest">
+                        {systemState.anchor}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* SCBKR */}
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="bg-slate-800/60 px-4 py-2 border-b border-slate-700 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                        SCBKR Responsibility Chain
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        S / C / B / K / R
+                      </span>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {Object.entries(systemState.scbkr).map(
+                        ([key, value]) => (
+                          <div
+                            key={key}
+                            className="flex justify-between items-center"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  value === "ALIGNED"
+                                    ? "bg-emerald-400"
+                                    : value === "VOID"
+                                    ? "bg-slate-700"
+                                    : "bg-amber-400"
+                                }`}
+                              ></span>
+                              <span className="text-xs font-bold font-mono text-slate-300">
+                                {key}
+                              </span>
+                              <span className="text-[9px] text-slate-500">
+                                {SCBKR_DESC[lang][key]}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                                value === "ALIGNED"
+                                  ? "text-emerald-400 border-emerald-900/60 bg-emerald-950/40"
+                                  : value === "MISSING"
+                                  ? "text-amber-300 border-amber-900/60 bg-amber-950/30"
+                                  : "text-slate-500 border-slate-700 bg-slate-950/60"
+                              }`}
+                            >
+                              {value}
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Drift */}
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-slate-400 text-[11px] font-bold uppercase flex items-center gap-2">
+                        {t.driftTitle}
+                        <IconActivity
+                          className={`w-4 h-4 ${
+                           parseFloat(systemState.drift) > 0.008
+                              ? "text-red-500 animate-pulse"
+                              : "text-emerald-400"
+                          }`}
+                        />
+                      </p>
+                      <span className="text-[10px] text-slate-600 font-mono">
+                        {t.driftTol}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <p
+                        className={`text-3xl font-black ${
+                          parseFloat(systemState.drift) > 0.008
+                            ? "text-red-500"
+                            : "text-slate-100"
+                        }`}
+                      >
+                        {systemState.drift.toFixed(4)}
+                      </p>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono mt-2">
+                      {t.driftDesc}
+                    </p>
+                  </div>
+
+                  {/* Logs */}
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="bg-slate-800/60 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                        <IconHash className="w-3 h-3" />
+                        {t.logsTitle}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {t.logsTag}
+                      </span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto scrollbar-thin font-mono p-2">
+                      {logs.length === 0 ? (
+                        <p className="text-[10px] text-slate-600 text-center py-6 italic">
+                          {t.logsEmpty}
+                        </p>
+                      ) : (
+                        logs.map((log, i) => (
+                          <div
+                            key={i}
+                            className="text-[10px] py-1.5 border-b border-slate-800 last:border-0 flex flex-col gap-0.5"
+                          >
+                            <div className="flex justify-between">
+                              <span className="text-slate-500">
+                                [{log.ts}]
+                              </span>
+                              <span className="text-blue-400">
+                                #{log.anchor}
+                              </span>
+                            </div>
+                            <div
+                              className={`truncate ${
+                                log.isGod
+                                  ? "text-red-400"
+                                  : "text-slate-300"
+                              }`}
+                            >
+                              {TEXT[lang].verdict[log.verdictKey]}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </section>
+              </main>
+
+              {/* Footer */}
+              <footer className="pt-6 border-t border-slate-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 text-slate-500 text-[10px]">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1">
+                    <IconServer className="w-3.5 h-3.5" />
+                    <span className="font-bold uppercase tracking-widest">
+                      Enterprise Core Node
+                    </span>
+                  </span>
+                  <span className="hidden md:inline">
+                    · Linguistic Compliance: 100%
+                  </span>
+                </div>
+                <div className="flex flex-col md:flex-row md:items-center md:gap-3 font-mono">
+                  <span>{t.footerLeft}</span>
+                  <span className="hidden md:inline">·</span>
+                  <span>{t.footerRight}</span>
+                </div>
+              </footer>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
     </script>
-</body>
+  </body>
 </html>
-
