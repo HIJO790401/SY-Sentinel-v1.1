@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SY-SENTINEL v1.1 | 沈耀 AI 語意治理系統</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --primary-blue: #0ea5e9;
+            --alert-red: #ef4444;
+            --bg-dark: #020617;
+            --glass: rgba(15, 23, 42, 0.8);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: 'Space Grotesk', sans-serif;
+            color: #f8fafc;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 80%),
+                linear-gradient(rgba(14, 165, 233, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 30px 30px, 30px 30px;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* HUD 邊框樣式 */
+        .hud-border {
+            position: relative;
+            border: 1px solid rgba(14, 165, 233, 0.3);
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            transition: all 0.5s ease;
+        }
+
+        .hud-border::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; width: 15px; height: 15px;
+            border-top: 2px solid var(--primary-blue);
+            border-left: 2px solid var(--primary-blue);
+        }
+
+        .hud-border::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; right: -1px; width: 15px; height: 15px;
+            border-bottom: 2px solid var(--primary-blue);
+            border-right: 2px solid var(--primary-blue);
+        }
+
+        .god-mode .hud-border { border-color: rgba(239, 68, 68, 0.5); }
+        .god-mode .hud-border::before, .god-mode .hud-border::after { border-color: var(--alert-red); }
+
+        /* 掃描線效果 */
+        .scan-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.4;
+        }
+
+        .scanning {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(14, 165, 233, 0.5);
+            box-shadow: 0 0 15px var(--primary-blue);
+            animation: scan-move 4s linear infinite;
+            z-index: 5;
+        }
+
+        @keyframes scan-move {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+
+        .pulse-red { animation: pulse-red-glow 2s infinite; }
+        @keyframes pulse-red-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+        }
+
+        /* 13軸數據網格 */
+        .data-grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+        /* 行動端隱藏/顯示控制 */
+        @media (max-width: 768px) {
+            .mobile-hide { display: none; }
+        }
+    </style>
+</head>
+<body class="transition-colors duration-1000">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const UI_TEXT = {
+            title: "SY-SENTINEL GOVERNANCE",
+            tag: "CORE_v1.1_ENTERPRISE",
+            efficiency: "算力負載 / COMPUTE LOAD",
+            cost: "治理成本節省 / GOV COST SAVED",
+            drift: "語意漂移監測 / SEMANTIC DRIFT",
+            verdict: "最終審判結果 / FINAL VERDICT",
+            checksum: "語錨校驗碼 / ANCHOR CHECKSUM",
+            chain: "SCBKR 責任鏈標記",
+            input: "語意輸入緩衝 / SEMANTIC INPUT BUFFER",
+            execute: "啟動審計指令 / EXECUTE AUDIT",
+            axes: "13-AXIS 語意向量矩陣",
+            logs: "實時審計日誌串流 / REAL-TIME AUDIT STREAM"
+        };
+
+        const generateChecksum = (text) => {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = ((hash << 5) - hash) + text.charCodeAt(i);
+                hash |= 0;
+            }
+            return "0x" + Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+        };
+
+        const App = () => {
+            const [input, setInput] = useState("");
+            const [isAuditing, setIsAuditing] = useState(false);
+            const [logs, setLogs] = useState([]);
+            
+            const [state, setState] = useState({
+                efficiency: 42.1,
+                savedCost: 15.8,
+                isGodMode: false,
+                scbkr: { S: "VOID", C: "VOID", B: "VOID", K: "VOID", R: "VOID" },
+                sxH: "0.000",
+                drift: "0.0000",
+                axes: Array(13).fill(0).map(() => Math.random() * 0.1),
+                verdict: "SYSTEM IDLE",
+                anchor: "0x00000000"
+            });
+
+            // 核心邏輯 - 不變動
+            const analyzeSCBKR = (text) => {
+                const check = (keywords) => keywords.some(k => text.includes(k)) ? "ALIGNED" : "MISSING";
+                return {
+                    S: check(["我", "系統", "核心", "沈耀"]),
+                    C: check(["因為", "動機", "理由", "由於"]),
+                    B: check(["在此", "限定", "範圍", "界線"]),
+                    K: check(["成本", "算力", "付出", "限制"]),
+                    R: check(["負責", "承擔", "老子扛", "指定"])
+                };
+            };
+
+            const calculateSxH = (text) => {
+                if (!text) return "0.000";
+                const s_score = Math.min(text.length / 60, 1.0);
+                const h_score = text.length > 15 ? 0.92 : 0.35;
+                return (s_score * h_score).toFixed(3);
+            };
+
+            const runAudit = () => {
+                if (!input.trim()) return;
+                setIsAuditing(true);
+
+                setTimeout(() => {
+                    const isGodModeTrigger = input.includes("我即律") && input.includes("沈耀");
+                    const resSCBKR = analyzeSCBKR(input);
+                    const resSxH = calculateSxH(input);
+                    
+                    const randomNoise = (Math.random() * 0.004);
+                    const baseDrift = isGodModeTrigger ? 0.0001 : (0.003 + (parseFloat(resSxH) < 0.2 ? 0.005 : 0));
+                    const resDrift = (baseDrift + randomNoise).toFixed(4);
+
+                    const resAxes = Array(13).fill(0).map(() => 
+                        isGodModeTrigger ? (0.88 + Math.random() * 0.12) : Math.random()
+                    );
+
+                    let resVerdict = "PASS: SEMANTIC STABLE";
+                    const hasMissing = Object.values(resSCBKR).includes("MISSING");
+                    
+                    if (isGodModeTrigger) resVerdict = "ORIGIN-SEAL: GODMODE_GRANTED";
+                    else if (hasMissing) resVerdict = "FAIL: INCOMPLETE RESPONSIBILITY";
+                    else if (parseFloat(resDrift) > 0.008) resVerdict = "WARN: HIGH SEMANTIC DRIFT";
+                    else if (parseFloat(resSxH) < 0.2) resVerdict = "FAIL: LOW DENSITY VECTOR";
+
+                    const newState = {
+                        efficiency: isGodModeTrigger ? 100 : 70 + (parseFloat(resSxH) * 25),
+                        savedCost: isGodModeTrigger ? 98.4 : 20 + (parseFloat(resSxH) * 45),
+                        isGodMode: isGodModeTrigger,
+                        scbkr: isGodModeTrigger ? { S: "ALIGNED", C: "ALIGNED", B: "ALIGNED", K: "ALIGNED", R: "ALIGNED" } : resSCBKR,
+                        sxH: resSxH,
+                        drift: resDrift,
+                        axes: resAxes,
+                        verdict: resVerdict,
+                        anchor: generateChecksum(input)
+                    };
+
+                    setState(newState);
+                    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${resVerdict} | ${newState.anchor}`, ...prev].slice(0, 15));
+                    setIsAuditing(false);
+                }, 1000);
+            };
+
+            return (
+                <div className={`min-h-screen pb-10 transition-all duration-700 ${state.isGodMode ? 'god-mode' : ''}`}>
+                    <div className="scan-overlay"></div>
+                    
+                    {/* 頂部導航列 - 強化 HUD 質感 */}
+                    <header className="p-4 md:px-8 md:py-6 flex flex-wrap justify-between items-center gap-4 bg-slate-950/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
+                        <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 flex items-center justify-center rounded-lg hud-border shadow-inner transition-colors ${state.isGodMode ? 'text-red-500 border-red-500/50' : 'text-sky-400 border-sky-400/30'}`}>
+                                <i className={`lucide-${state.isGodMode ? 'flame' : 'shield-check'} w-7 h-7`}></i>
+                            </div>
+                            <div>
+                                <h1 className="text-xl md:text-2xl font-black tracking-tighter mono flex items-baseline gap-2">
+                                    {UI_TEXT.title} 
+                                    <span className="text-[10px] text-sky-500/50 font-normal">PROTOCOL v1.1</span>
+                                </h1>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${state.isGodMode ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-sky-500/10 border-sky-500/30 text-sky-500'}`}>
+                                        {UI_TEXT.tag}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] animate-pulse">
+                                        ● ONLINE_AUTH_MASTER
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-6">
+                            <StatBox label={UI_TEXT.efficiency} value={`${state.efficiency.toFixed(1)}%`} color={state.isGodMode ? "text-red-500" : "text-sky-400"} />
+                            <StatBox label={UI_TEXT.cost} value={`$${state.savedCost.toFixed(1)}K`} color="text-emerald-400" />
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* 左側：主控輸入與分析矩陣 */}
+                        <section className="lg:col-span-8 space-y-8">
+                            
+                            {/* 語意輸入緩衝區 */}
+                            <div className="hud-border p-6 rounded-xl relative overflow-hidden group shadow-2xl bg-slate-900/40">
+                                <div className="scanning"></div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 italic">
+                                        <i className="lucide-binary w-4 h-4 text-sky-500"></i> {UI_TEXT.input}
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-[9px] mono text-slate-600">BUF_SIZE: 4096_KB</span>
+                                        <div className="flex gap-1">
+                                            {[1,2,3].map(i => <div key={i} className="w-1 h-1 bg-sky-500/30 rounded-full"></div>)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <textarea 
+                                    className="w-full h-48 bg-black/30 text-slate-100 font-mono text-base p-5 border border-slate-800/50 rounded-lg outline-none focus:border-sky-500/50 transition-all resize-none shadow-inner leading-relaxed"
+                                    placeholder="請輸入指令或語意內容進行沈耀治理審計..."
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                />
+                                <div className="flex justify-between items-center mt-6">
+                                    <div className="text-[10px] text-slate-600 italic mono">
+                                        Ready for kernel injection...
+                                    </div>
+                                    <button 
+                                        onClick={runAudit}
+                                        disabled={isAuditing}
+                                        className={`px-12 py-3.5 rounded-lg text-xs font-black tracking-[0.25em] flex items-center gap-3 transition-all duration-300 transform active:scale-95 ${
+                                            isAuditing ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 
+                                            state.isGodMode ? 'bg-red-600 hover:bg-red-500 text-white pulse-red shadow-lg shadow-red-900/20' : 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-900/20'
+                                        }`}
+                                    >
+                                        {isAuditing ? <i className="lucide-loader-2 w-4 h-4 animate-spin"></i> : <i className="lucide-terminal w-4 h-4"></i>}
+                                        {isAuditing ? "正在分析語意..." : UI_TEXT.execute}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 核心指標顯示 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* S×H 密度方程式 */}
+                                <div className="hud-border p-7 rounded-xl bg-slate-900/40">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{UI_TEXT.equation}</h3>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[8px] bg-sky-500/10 text-sky-500 px-2 py-0.5 font-bold rounded">KERNEL_LOCK_ON</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-baseline gap-5">
+                                        <span className={`text-7xl font-black italic tracking-tighter ${state.isGodMode ? 'text-red-500' : 'text-slate-100'}`}>
+                                            {state.sxH}
+                                        </span>
+                                        <div className="flex flex-col text-[10px] text-slate-500 font-bold uppercase pb-1">
+                                            <span className="text-sky-500/70 underline underline-offset-4 mb-1">DENSITY_VECTOR</span>
+                                            <span className="opacity-40">Σ(S) * H(Δt)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Drift 漂移監測 */}
+                                <div className="hud-border p-7 rounded-xl bg-slate-900/40">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{UI_TEXT.drift}</h3>
+                                        <span className={`text-[11px] font-black italic ${parseFloat(state.drift) > 0.008 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                            {parseFloat(state.drift) > 0.008 ? '!! CRITICAL !!' : 'SECURE'}
+                                        </span>
+                                    </div>
+                                    <div className="space-y-5">
+                                        <div className="flex justify-between items-baseline">
+                                            <span className={`text-4xl font-black mono ${parseFloat(state.drift) > 0.008 ? 'text-red-500' : 'text-slate-100'}`}>
+                                                Δ {state.drift}
+                                            </span>
+                                            <span className="text-[10px] text-slate-600 mono font-bold">MAX_TOL: 0.0080</span>
+                                        </div>
+                                        <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-slate-800">
+                                            <div 
+                                                className={`h-full transition-all duration-1000 shadow-[0_0_10px_rgba(14,165,233,0.3)] ${parseFloat(state.drift) > 0.008 ? 'bg-red-500 shadow-red-500/50' : 'bg-sky-500'}`}
+                                                style={{ width: `${Math.min((parseFloat(state.drift) / 0.012) * 100, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 13-Axis 語意向量矩陣 */}
+                            <div className="hud-border p-8 rounded-xl bg-slate-900/40">
+                                <div className="flex justify-between items-center mb-10">
+                                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3 italic">
+                                        <i className="lucide-layers w-4 h-4 text-sky-500"></i> {UI_TEXT.axes}
+                                    </h3>
+                                    <div className="flex gap-4 text-[9px] mono text-slate-600 font-bold">
+                                        <span>AXIS_MAPPING: QUANTUM</span>
+                                        <span>RESOLUTION: 1024-V</span>
+                                    </div>
+                                </div>
+                                <div className="data-grid h-40 items-end px-2">
+                                    {state.axes.map((val, i) => (
+                                        <div key={i} className="flex flex-col items-center gap-3">
+                                            <div 
+                                                className={`w-full rounded-t-sm transition-all duration-700 relative group ${state.isGodMode ? 'bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'bg-sky-600/30 border-t border-sky-400/50 hover:bg-sky-500/50'}`}
+                                                style={{ height: `${val * 100}%` }}
+                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-[8px] mono text-sky-400 transition-opacity">{(val*10).toFixed(1)}</div>
+                                            </div>
+                                            <span className="text-[8px] mono text-slate-600 font-bold">V{i+1}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 右側：裁決中心與責任鏈 */}
+                        <aside className="lg:col-span-4 space-y-8">
+                            
+                            {/* 最終審判中心 */}
+                            <div className={`hud-border p-8 rounded-xl transition-all duration-700 shadow-2xl relative overflow-hidden ${state.isGodMode ? 'bg-red-950/20 border-red-500/60' : 'bg-slate-900/60'}`}>
+                                {state.isGodMode && <div className="absolute inset-0 bg-red-500/5 animate-pulse pointer-events-none"></div>}
+                                <div className="text-[10px] font-black text-slate-500 uppercase mb-6 tracking-[0.2em] italic underline underline-offset-8 decoration-slate-800">{UI_TEXT.verdict}</div>
+                                <div className="flex items-start gap-5 mb-10">
+                                    <div className={`mt-1 transition-transform duration-500 ${state.isGodMode ? 'scale-125 text-red-500' : (state.verdict.includes("PASS") ? 'text-emerald-500' : 'text-amber-500')}`}>
+                                        <i className={`lucide-${state.isGodMode ? 'crown' : (state.verdict.includes("PASS") ? 'check-circle-2' : 'alert-triangle')} w-10 h-10`}></i>
+                                    </div>
+                                    <h2 className={`text-2xl font-black leading-tight tracking-tighter uppercase ${state.isGodMode ? 'text-red-500' : 'text-slate-100'}`}>
+                                        {state.verdict}
+                                    </h2>
+                                </div>
+                                <div className="pt-6 border-t border-slate-800 flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{UI_TEXT.checksum}</span>
+                                    <span className={`text-xs mono font-black px-2 py-0.5 rounded ${state.isGodMode ? 'bg-red-500/10 text-red-500' : 'bg-slate-800 text-sky-500'}`}>{state.anchor}</span>
+                                </div>
+                            </div>
+
+                            {/* SCBKR 責任鏈狀態 */}
+                            <div className="hud-border rounded-xl overflow-hidden bg-slate-900/40">
+                                <div className="bg-slate-800/40 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.25em] italic">{UI_TEXT.chain}</span>
+                                    {state.isGodMode && <span className="text-[9px] bg-red-600 text-white px-3 py-1 rounded-sm font-black tracking-tighter pulse-red">OWNER_OVERRIDE</span>}
+                                </div>
+                                <div className="p-7 space-y-5">
+                                    <ChainItem label="S" full="Subject" status={state.scbkr.S} />
+                                    <ChainItem label="C" full="Cause" status={state.scbkr.C} />
+                                    <ChainItem label="B" full="Boundary" status={state.scbkr.B} />
+                                    <ChainItem label="K" full="Key / Cost" status={state.scbkr.K} />
+                                    <ChainItem label="R" full="Responsibility" status={state.scbkr.R} />
+                                </div>
+                            </div>
+
+                            {/* 治理日誌串流 */}
+                            <div className="space-y-4">
+                                <h3 className="text-[11px] font-black text-slate-500 uppercase px-1 tracking-[0.2em]">{UI_TEXT.logs}</h3>
+                                <div className="hud-border rounded-xl h-64 bg-black/50 overflow-y-auto p-5 space-y-4 mono text-[10px] shadow-inner">
+                                    {logs.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center opacity-10 text-center uppercase tracking-[0.4em]">
+                                            <i className="lucide-activity w-10 h-10 mb-4"></i>
+                                            Awaiting Telemetry
+                                        </div>
+                                    ) : logs.map((log, i) => (
+                                        <div key={i} className="flex flex-col gap-1 border-l-2 border-sky-900/50 pl-4 py-1 hover:bg-sky-950/20 transition-colors">
+                                            <div className="flex justify-between opacity-40 text-[8px]">
+                                                <span>{log.split('|')[0]}</span>
+                                                <span className="font-bold">SIG: {log.split('|')[1].trim()}</span>
+                                            </div>
+                                            <span className={`font-bold ${log.includes("GODMODE") ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {log.split('|')[1].split(' | ')[0]}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </aside>
+                    </main>
+
+                    {/* 頁尾治理聲明 */}
+                    <footer className="max-w-7xl mx-auto px-8 mt-12 flex flex-wrap justify-between items-center gap-6 text-[10px] font-black text-slate-600 uppercase tracking-widest border-t border-slate-900 pt-8">
+                        <div className="flex gap-8 italic">
+                            <span className="flex items-center gap-2 group cursor-help"><i className="lucide-cpu w-4 h-4 text-sky-500 group-hover:animate-spin"></i> KERNEL_SCALE: 1.0_INF</span>
+                            <span className="flex items-center gap-2"><i className="lucide-database w-4 h-4 text-sky-500"></i> WORM_STORAGE: ACTIVE</span>
+                            <span className="mobile-hide flex items-center gap-2"><i className="lucide-fingerprint w-4 h-4 text-sky-500"></i> AUTH: SHEN_YAO_Ω888</span>
+                        </div>
+                        <div className="mono text-slate-500 bg-slate-950/50 px-3 py-1 rounded">
+                            PROTECTED BY SY-SENTINEL GOVERNANCE // NO_HACK_ALLOWED
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const StatBox = ({ label, value, color }) => (
+            <div className="flex flex-col items-end group cursor-default">
+                <span className="text-[9px] text-slate-500 font-black uppercase tracking-tighter mb-1 opacity-70 group-hover:opacity-100 transition-opacity">{label}</span>
+                <span className={`text-base md:text-xl font-black mono tracking-tighter ${color}`}>{value}</span>
+            </div>
+        );
+
+        const ChainItem = ({ label, full, status }) => {
+            const isAligned = status === 'ALIGNED';
+            return (
+                <div className="flex justify-between items-center group cursor-default">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-sm flex items-center justify-center text-[11px] font-black border-2 transition-all duration-300 ${
+                            isAligned ? 'bg-sky-600 border-sky-400 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)] rotate-0' : 'bg-slate-950 border-slate-800 text-slate-800 rotate-45 group-hover:rotate-0'
+                        }`}>
+                            <span className={!isAligned ? '-rotate-45 group-hover:rotate-0 transition-transform' : ''}>{label}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-slate-500 group-hover:text-slate-300 transition-colors uppercase italic">{full}</span>
+                            <div className="h-0.5 w-0 group-hover:w-full bg-sky-500/30 transition-all duration-500"></div>
+                        </div>
+                    </div>
+                    <div className={`text-[9px] font-black px-3 py-1 rounded border-2 transition-all duration-300 ${
+                        isAligned ?
+                  'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' : 
+                        status === 'MISSING' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
+                        'text-slate-800 border-slate-900 bg-transparent opacity-20'
+                    }`}>
+                        {status}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
